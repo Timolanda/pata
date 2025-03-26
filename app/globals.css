@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* African-inspired game color scheme */
+    --background: 240 30% 98%;
+    --foreground: 270 80% 25%;
+
+    --card: 240 30% 98%;
+    --card-foreground: 270 80% 25%;
+
+    --popover: 240 30% 98%;
+    --popover-foreground: 270 80% 25%;
+
+    /* Deep Indigo as primary color */
+    --primary: 270 100% 25%;
+    --primary-foreground: 240 30% 98%;
+
+    /* Sunset Orange as secondary color */
+    --secondary: 16 100% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Golden Yellow as accent */
+    --accent: 50 100% 50%;
+    --accent-foreground: 270 80% 25%;
+
+    /* Jungle Green for success states */
+    --success: 120 100% 25%;
+    --success-foreground: 0 0% 100%;
+
+    /* Electric Blue for info/highlights */
+    --info: 210 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    /* Vibrant Magenta for special elements */
+    --magenta: 300 100% 50%;
+    --magenta-foreground: 0 0% 100%;
+
+    --muted: 270 20% 90%;
+    --muted-foreground: 270 10% 40%;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 240 30% 98%;
+
+    --border: 270 30% 80%;
+    --input: 270 30% 80%;
+    --ring: 270 100% 25%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 270 30% 10%;
+    --foreground: 240 30% 98%;
+
+    --card: 270 30% 12%;
+    --card-foreground: 240 30% 98%;
+
+    --popover: 270 30% 12%;
+    --popover-foreground: 240 30% 98%;
+
+    --primary: 270 100% 30%;
+    --primary-foreground: 240 30% 98%;
+
+    --secondary: 16 100% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 50 100% 50%;
+    --accent-foreground: 270 30% 10%;
+
+    --success: 120 100% 25%;
+    --success-foreground: 0 0% 100%;
+
+    --info: 210 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --magenta: 300 100% 50%;
+    --magenta-foreground: 0 0% 100%;
+
+    --muted: 270 20% 20%;
+    --muted-foreground: 270 10% 70%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 240 30% 98%;
+
+    --border: 270 30% 30%;
+    --input: 270 30% 30%;
+    --ring: 270 100% 30%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.font-pata {
+  font-family: "Montserrat", sans-serif;
+}
+
+/* Game-inspired UI elements */
+.game-card {
+  @apply relative overflow-hidden rounded-xl border-2 border-primary/50 bg-gradient-to-br from-background to-muted shadow-lg;
+  box-shadow: 0 0 15px rgba(75, 0, 130, 0.2);
+}
+
+.game-button {
+  @apply relative overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md transition-all hover:shadow-lg hover:from-primary/90 hover:to-primary active:scale-95;
+}
+
+.game-button-secondary {
+  @apply relative overflow-hidden rounded-xl bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground shadow-md transition-all hover:shadow-lg hover:from-secondary/90 hover:to-secondary active:scale-95;
+}
+
+.game-button-accent {
+  @apply relative overflow-hidden rounded-xl bg-gradient-to-r from-accent to-accent/80 text-accent-foreground shadow-md transition-all hover:shadow-lg hover:from-accent/90 hover:to-accent active:scale-95;
+}
+
+.game-input {
+  @apply rounded-xl border-2 border-primary/30 bg-background/80 focus:border-primary focus:ring-2 focus:ring-primary/30;
+}
+
+.glow-effect {
+  position: relative;
+}
+
+.glow-effect::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #4b0082, #ff4500);
+  z-index: -1;
+  filter: blur(15px);
+  opacity: 0.5;
+  border-radius: inherit;
+}
+
+.glow-effect-gold {
+  position: relative;
+}
+
+.glow-effect-gold::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #ffd700, #ff4500);
+  z-index: -1;
+  filter: blur(15px);
+  opacity: 0.5;
+  border-radius: inherit;
+}
+
+.glow-effect-blue {
+  position: relative;
+}
+
+.glow-effect-blue::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #1e90ff, #ff00ff);
+  z-index: -1;
+  filter: blur(15px);
+  opacity: 0.5;
+  border-radius: inherit;
+}
+
+/* Custom scrollbar for game feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Game-inspired animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 5px 0 rgba(75, 0, 130, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(75, 0, 130, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 5px 0 rgba(75, 0, 130, 0.5);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow-gold {
+  0% {
+    box-shadow: 0 0 5px 0 rgba(255, 215, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 5px 0 rgba(255, 215, 0, 0.5);
+  }
+}
+
+.pulse-glow-gold {
+  animation: pulse-glow-gold 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow-blue {
+  0% {
+    box-shadow: 0 0 5px 0 rgba(30, 144, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(30, 144, 255, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 5px 0 rgba(30, 144, 255, 0.5);
+  }
+}
+
+.pulse-glow-blue {
+  animation: pulse-glow-blue 2s ease-in-out infinite;
+}
+
