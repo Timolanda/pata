@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 export function TreasureUpgradesButton() {
   const { toast } = useToast();
   const [isUpgrading, setIsUpgrading] = useState(false);
-  
+
   const handleUpgrade = (treasureName: string, level: number) => {
     setIsUpgrading(true);
     // Simulate upgrade process
@@ -132,5 +132,45 @@ export function TreasureUpgradesButton() {
                     </div>
                     
                     <div className="space-y-2 mt-3">
-                \
+                      <div className="text-xs text-purple-300">Upgrade Requirements</div>
+                      <div className="text-sm text-purple-200">{treasure.upgradeRequirements}</div>
+                    </div>
+                    
+                    <div className="mt-4">
+                      {treasure.level < treasure.maxLevel && (
+                        <Button
+                          variant="outline"
+                          className="w-full bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 hover:bg-purple-500/20 border-purple-500/20 text-white"
+                          onClick={() => handleUpgrade(treasure.name, treasure.level)}
+                          disabled={isUpgrading}
+                        >
+                          {isUpgrading ? "Upgrading..." : `Upgrade to Level ${treasure.level + 1}`}
+                        </Button>
+                      )}
+                      {treasure.level >= treasure.maxLevel && (
+                        <Button
+                          variant="outline"
+                          disabled
+                          className="w-full bg-gray-600 text-gray-400 cursor-not-allowed"
+                        >
+                          Max Level Reached
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
 
+          <TabsContent value="marketplace" className="space-y-4 py-4">
+            {/* Marketplace Content Goes Here */}
+            <div className="text-center text-purple-200">
+              Coming Soon!
+            </div>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}

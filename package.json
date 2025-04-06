@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "next dev",              
+    "build": "next build",          
+    "start": "next start",          
+    "lint": "next lint"             
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -18,7 +18,7 @@
     "@radix-ui/react-checkbox": "latest",
     "@radix-ui/react-collapsible": "^1.1.2",
     "@radix-ui/react-context-menu": "^2.2.4",
-    "@radix-ui/react-dialog": "^1.1.4",
+    "@radix-ui/react-dialog": "^1.1.4",           
     "@radix-ui/react-dropdown-menu": "^2.1.4",
     "@radix-ui/react-hover-card": "^1.1.4",
     "@radix-ui/react-label": "latest",
@@ -47,11 +47,11 @@
     "framer-motion": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "^15.2.4",
+    "next": "^13.0.0",             
     "next-themes": "^0.4.4",
-    "react": "^19",
+    "react": "^18.0.0",            
     "react-day-picker": "8.10.1",
-    "react-dom": "^19",
+    "react-dom": "^18.0.0",         
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
@@ -63,10 +63,10 @@
   },
   "devDependencies": {
     "@types/node": "^22",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^18.0.0",         
+    "@types/react-dom": "^18.0.0",     
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^4.5"             
   }
 }
