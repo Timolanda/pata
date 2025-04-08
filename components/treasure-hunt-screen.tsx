@@ -1,17 +1,21 @@
-"use client"
+// components/TreasureHuntScreen.tsx
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { Camera, X, Info, Award } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
+import { motion } from 'framer-motion'
+import { Camera, X, Award, Info } from 'lucide-react'  // Correct import for Info icon
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { ProximityNotification } from '@/components/proximity-notification'
+
 
 export function TreasureHuntScreen() {
   const [scanning, setScanning] = useState(false)
   const [foundTreasure, setFoundTreasure] = useState(false)
   const [scanProgress, setScanProgress] = useState(0)
+  const [distance, setDistance] = useState(10) // Set initial distance (example)
+  const [hint, setHint] = useState('Look for the hidden artifact near the ancient trees.')
 
   useEffect(() => {
     if (scanning && !foundTreasure) {
@@ -41,6 +45,16 @@ export function TreasureHuntScreen() {
     setFoundTreasure(false)
     setScanning(false)
     setScanProgress(0)
+  }
+
+  const handleDismiss = () => {
+    // Reset notification logic or just hide it
+    setFoundTreasure(false)
+  }
+
+  const handleNavigate = () => {
+    // Logic for navigation (e.g., show map or open navigation app)
+    console.log('Navigating to the treasure...')
   }
 
   return (
@@ -151,7 +165,18 @@ export function TreasureHuntScreen() {
           </div>
         )}
       </div>
+
+      {/* Proximity Notification */}
+      {foundTreasure && (
+        <ProximityNotification
+          treasureId="1"
+          treasureName="Ancient Mask"
+          distance={distance} // passing distance
+          hint={hint} // passing hint
+          onDismiss={handleDismiss}
+          onNavigate={handleNavigate}
+        />
+      )}
     </div>
   )
 }
-
