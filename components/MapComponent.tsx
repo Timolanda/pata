@@ -46,7 +46,15 @@ export function MapComponent({ userLocation, treasureLocation }: MapProps) {
       treasureMarker.bindPopup('You are very close! 🗝️').openPopup()
     }
 
-    return () => map.remove()
+    // Add "Claim Treasure" feature
+    treasureMarker.on('click', () => {
+      alert('🎉 You claimed the treasure!')
+    })
+
+    // Cleanup function to remove the map when the component is unmounted
+    return () => {
+      map.remove()
+    }
   }, [userLocation, treasureLocation])
 
   return <div ref={mapRef} className="w-full h-64 rounded-lg overflow-hidden shadow-md" />

@@ -15,6 +15,7 @@ import { NotificationSettings } from "@/components/settings/notification-setting
 import { PartnerDashboard } from "@/components/partner/partner-dashboard"
 import { TokenWallet } from "@/components/token/token-wallet"
 import { NFTMuseum } from "@/components/nft/nft-museum"
+import 'leaflet/dist/leaflet.css';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<string>("splash")
