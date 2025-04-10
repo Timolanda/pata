@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Image from "next/image"
 import { LibraryIcon as Museum, ShoppingBag, Utensils, Landmark, Trophy, Calendar, MapPin } from "lucide-react"
@@ -10,9 +9,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { MapComponent } from "@/components/MapComponent"
 
 export function HomeScreen() {
   const [activeTab, setActiveTab] = useState("map")
+
+  const userLocation = { lat: -1.2921, lng: 36.8219 }  // Example user location (could be dynamic)
 
   return (
     <div className="h-full">
@@ -45,25 +47,13 @@ export function HomeScreen() {
         </TabsList>
 
         <TabsContent value="map" className="m-0">
-          <div className="relative h-[300px] bg-indigo-200 border-b-4 border-indigo-800">
-            <Image src="/placeholder.svg?height=300&width=400" alt="Map View" fill className="object-cover" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center bg-indigo-900/70 p-4 rounded-lg text-indigo-50">
-                <p>AR Map View</p>
-                <p className="text-sm">(Tap to explore treasures nearby)</p>
-              </div>
-            </div>
-
-            {/* Map Pins */}
-            <div className="absolute top-1/4 left-1/3">
-              <MapPin className="text-red-500 h-8 w-8 animate-bounce" />
-            </div>
-            <div className="absolute top-1/2 right-1/4">
-              <MapPin className="text-blue-500 h-8 w-8 animate-bounce" />
-            </div>
-            <div className="absolute bottom-1/4 left-1/2">
-              <MapPin className="text-green-500 h-8 w-8 animate-bounce" />
-            </div>
+          <div className="relative h-[300px] border-b-4 border-indigo-800">
+            <MapComponent
+              userLocation={userLocation} // Pass userLocation here
+              treasureLocation={{ lat: -1.2921, lng: 36.8219 }} // Example location for a treasure
+              zoom={15}
+              className="w-full h-full"
+            />
           </div>
 
           <div className="p-4 bg-indigo-50">
@@ -231,11 +221,10 @@ function LeaderboardItem({
   isUser?: boolean
 }) {
   return (
-    <div className={`flex items-center p-2 rounded-lg ${isUser ? "bg-indigo-200" : ""}`}>
-      <div className="w-6 text-center font-bold text-indigo-800">{rank}</div>
-      <div className="flex-1 ml-2 font-medium text-indigo-900">{name}</div>
-      <div className="font-bold text-indigo-800">{points}</div>
+    <div className={`flex items-center ${isUser ? "bg-indigo-100" : ""}`}>
+      <span className={`mr-2 w-6 text-center font-semibold ${isUser ? "text-indigo-900" : ""}`}>{rank}</span>
+      <span className="flex-1 text-sm">{name}</span>
+      <span className={`font-bold ${isUser ? "text-indigo-900" : "text-indigo-700"}`}>{points} pts</span>
     </div>
   )
 }
-

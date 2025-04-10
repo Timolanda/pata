@@ -1,63 +1,84 @@
-import { useEffect, useRef } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+'use client'
+
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api'
+import { useMemo, useState } from 'react'
 
 interface MapProps {
-  userLocation: { lat: number; lng: number }
-  treasureLocation: { lat: number; lng: number }
+  userLocation: { lat: number; lng: number } // Required
+  treasureLocation: { lat: number; lng: number } // Required
+  onSelectLocation?: (coords: { lat: number; lng: number }) => void // Optional callback for selecting a location
+  zoom?: number // Optional
+  className?: string // Optional
 }
 
-export function MapComponent({ userLocation, treasureLocation }: MapProps) {
-  const mapRef = useRef<HTMLDivElement>(null)
+export function MapComponent({
+  userLocation,
+  treasureLocation,
+  onSelectLocation,
+  zoom = 15,
+  className = "",
+}: MapProps) {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+  })
 
-  useEffect(() => {
-    if (!mapRef.current) return
+  const center = useMemo(() => userLocation, [userLocation])
 
-    const map = L.map(mapRef.current).setView([userLocation.lat, userLocation.lng], 15)
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null)
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map)
+  const distance = getDistance(userLocation, treasureLocation)
 
-    const userIcon = L.icon({
-      iconUrl: '/user-icon.png',
-      iconSize: [30, 30],
-      iconAnchor: [15, 15],
-    })
-
-    const treasureIcon = L.icon({
-      iconUrl: '/treasure-icon.png',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-      className: 'treasure-marker', // custom CSS class for animation
-    })
-
-    const distance = getDistance(userLocation, treasureLocation)
-
-    // Add user marker
-    L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(map)
-
-    // Add treasure marker with highlight if close
-    const treasureMarker = L.marker([treasureLocation.lat, treasureLocation.lng], {
-      icon: treasureIcon,
-    }).addTo(map)
-
-    if (distance <= 0.5) {
-      treasureMarker.bindPopup('You are very close! 🗝️').openPopup()
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (onSelectLocation) {
+      const coords = { lat: e.latLng?.lat() ?? 0, lng: e.latLng?.lng() ?? 0 }
+      setSelectedLocation(coords)
+      onSelectLocation(coords) // Call the passed function to update the location in the parent
     }
+  }
 
-    // Add "Claim Treasure" feature
-    treasureMarker.on('click', () => {
-      alert('🎉 You claimed the treasure!')
-    })
+  if (!isLoaded) return <div>Loading map...</div>
 
-    // Cleanup function to remove the map when the component is unmounted
-    return () => {
-      map.remove()
-    }
-  }, [userLocation, treasureLocation])
-
-  return <div ref={mapRef} className="w-full h-64 rounded-lg overflow-hidden shadow-md" />
+  return (
+    <div className={`w-full h-64 rounded-lg overflow-hidden shadow-md ${className}`}>
+      <GoogleMap
+        center={center}
+        zoom={zoom}
+        mapContainerStyle={{ width: '100%', height: '100%' }}
+        onClick={handleMapClick} // Handle user click on the map
+      >
+        <Marker
+          position={userLocation}
+          icon={{
+            url: '/user-icon.png',
+            scaledSize: new window.google.maps.Size(30, 30),
+          }}
+        />
+        <Marker
+          position={treasureLocation}
+          icon={{
+            url: '/treasure-icon.png',
+            scaledSize: new window.google.maps.Size(40, 40),
+          }}
+          onClick={() => {
+            if (distance <= 0.5) {
+              alert('🎉 You claimed the treasure!')
+            } else {
+              alert('❗ You are too far from the treasure.')
+            }
+          }}
+        />
+        {selectedLocation && (
+          <Marker
+            position={selectedLocation}
+            icon={{
+              url: '/selected-location-icon.png', // You can add your own icon here
+              scaledSize: new window.google.maps.Size(30, 30),
+            }}
+          />
+        )}
+      </GoogleMap>
+    </div>
+  )
 }
 
 // Helper function to calculate distance in KM
@@ -65,7 +86,7 @@ function getDistance(
   loc1: { lat: number; lng: number },
   loc2: { lat: number; lng: number }
 ): number {
-  const R = 6371 // km
+  const R = 6371 // Earth's radius in KM
   const dLat = (loc2.lat - loc1.lat) * (Math.PI / 180)
   const dLon = (loc2.lng - loc1.lng) * (Math.PI / 180)
   const a =

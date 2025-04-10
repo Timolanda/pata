@@ -11,10 +11,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { MapComponent } from "@/components/MapComponent"
 
 export function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState("")
-
+  const userLocation = { lat: -1.2921, lng: 36.8219 }
+  
   return (
     <div className="h-full bg-indigo-50">
       <header className="bg-indigo-800 text-indigo-50 p-4">
@@ -163,7 +165,12 @@ export function ExploreScreen() {
           <ScrollArea className="h-[calc(100vh-200px)]">
             <div className="space-y-4">
               <div className="relative h-48 rounded-xl overflow-hidden mb-4">
-                <Image src="/placeholder.svg?height=200&width=400" alt="Map View" fill className="object-cover" />
+              <MapComponent
+              userLocation={userLocation}
+              treasureLocation={{ lat: -1.2921, lng: 36.8219 }} // Example treasure location
+              zoom={15}
+              className="h-full w-full"
+            />
                 <div className="absolute top-2 right-2">
                   <Button size="sm" className="bg-indigo-800 hover:bg-indigo-900">
                     Open Full Map
