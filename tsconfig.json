@@ -33,14 +33,16 @@
         "name": "next"
       }
     ],
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "typeRoots": ["./types", "./node_modules/@types"]  // Added here
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "src/types.d.ts"
+    "src/types.d.ts",
+    "types/**/*"  // Ensure that the types directory is included
   ],
   "exclude": [
     "node_modules"

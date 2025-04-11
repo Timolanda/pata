@@ -254,11 +254,12 @@ export function AddTreasureButton({ variant = "default", size = "default", class
                 <Label className="text-right text-indigo-900 pt-2">Location</Label>
                 <div className="col-span-3">
                   <div className="h-40 bg-indigo-100 rounded-lg flex items-center justify-center mb-2 border border-indigo-300">
+                    <MapPin className="h-8 w-8 text-indigo-400" />
                     <MapComponent
-                    userLocation={userLocation} // Pass userLocation here
-                      treasureLocation={{ lat: -1.2921, lng: 36.8219 }} // Example location for a treasure
-                      zoom={15}
-                    />
+                        userLocation={userLocation} // Pass userLocation here
+                        treasureLocation={{ lat: -1.2921, lng: 36.8219 }} // Example location for a treasure
+                        zoom={15}
+                     />
                   </div>
                   <p className="text-xs text-indigo-600">
                     Click on the map to place your treasure or enter coordinates below
@@ -340,4 +341,3 @@ export function AddTreasureButton({ variant = "default", size = "default", class
     </Dialog>
   )
 }
-
