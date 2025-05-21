@@ -5,14 +5,14 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PataToken is ERC20, Ownable {
-    constructor(address initialOwner) 
+    constructor() 
         ERC20("PATA Token", "PATA") 
-        Ownable(initialOwner)
+        Ownable(msg.sender)
     {
-        _mint(msg.sender, 1000000 * 10 ** decimals()); // Mint 1 million PATA tokens
+        _mint(msg.sender, 1000000 * 10 ** decimals());
     }
 
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
+    function burn(uint256 amount) public {
+        _burn(msg.sender, amount);
     }
 } 

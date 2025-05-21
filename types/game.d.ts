@@ -7,6 +7,8 @@ export interface Treasure {
   latitude?: number;
   longitude?: number;
   targetIndex?: number;
+  type?: 'mask' | 'scroll' | 'shield' | 'jewelry' | 'drum';
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 }
 
 export interface PlayerPosition {

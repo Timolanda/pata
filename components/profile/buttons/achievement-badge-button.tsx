@@ -17,17 +17,17 @@ import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
 
 interface AchievementBadge {
-  id: string
-  name: string
-  description: string
-  icon: string
-  unlocked: boolean
+    id: string
+    name: string
+    description: string
+    icon: string
+    unlocked: boolean
   dateEarned?: string
-  progress?: number
-  total?: number
+    progress?: number
+    total?: number
   rarity: "common" | "uncommon" | "rare" | "legendary"
   points: number
-}
+  }
 
 interface AchievementBadgeButtonProps {
   variant?: "default" | "outline" | "secondary" | "ghost"
@@ -117,85 +117,85 @@ export function AchievementBadgeButton({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[425px] border-indigo-300">
-        <DialogHeader>
-          <DialogTitle className="text-indigo-900 flex items-center">
-            <Award className="mr-2 h-5 w-5 text-sunset-600" />
-            Achievement Badge
-          </DialogTitle>
-          <DialogDescription className="text-indigo-700">
-            {badge.unlocked ? "You've earned this badge!" : "Keep exploring to unlock this badge"}
-          </DialogDescription>
-        </DialogHeader>
+        <DialogContent className="sm:max-w-[425px] border-indigo-300">
+          <DialogHeader>
+            <DialogTitle className="text-indigo-900 flex items-center">
+              <Award className="mr-2 h-5 w-5 text-sunset-600" />
+              Achievement Badge
+            </DialogTitle>
+            <DialogDescription className="text-indigo-700">
+              {badge.unlocked ? "You've earned this badge!" : "Keep exploring to unlock this badge"}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="py-4 space-y-4">
-          <div className="flex flex-col items-center">
-            <div className={`relative w-32 h-32 ${badge.unlocked ? "pulse-glow" : "opacity-60"}`}>
-              <div className={`p-8 rounded-full ${badge.unlocked ? "bg-sunset-100" : "bg-indigo-100"}`}>
+          <div className="py-4 space-y-4">
+            <div className="flex flex-col items-center">
+              <div className={`relative w-32 h-32 ${badge.unlocked ? "pulse-glow" : "opacity-60"}`}>
+                <div className={`p-8 rounded-full ${badge.unlocked ? "bg-sunset-100" : "bg-indigo-100"}`}>
                 {getIcon(badge.icon)}
-              </div>
-              {badge.unlocked && badge.rarity && (
+                </div>
+                {badge.unlocked && badge.rarity && (
                 <Badge className={`absolute -top-2 -right-2 ${getRarityColor(badge.rarity)}`}>
-                  {badge.rarity.charAt(0).toUpperCase() + badge.rarity.slice(1)}
-                </Badge>
+                    {badge.rarity.charAt(0).toUpperCase() + badge.rarity.slice(1)}
+                  </Badge>
+                )}
+              </div>
+
+              <h2 className="text-xl font-bold text-indigo-900 mt-4">{badge.name}</h2>
+              <p className="text-indigo-700 text-center mt-1">{badge.description}</p>
+
+              {badge.unlocked && badge.dateEarned && (
+                <div className="flex items-center mt-2 text-sm text-indigo-600">
+                  <CheckCircle className="h-4 w-4 mr-1 text-jungle-600" />
+                  Earned on {badge.dateEarned}
+                </div>
               )}
+
+              {badge.points && <Badge className="mt-2 bg-sunset-600">+{badge.points} PATA Points</Badge>}
             </div>
 
-            <h2 className="text-xl font-bold text-indigo-900 mt-4">{badge.name}</h2>
-            <p className="text-indigo-700 text-center mt-1">{badge.description}</p>
-
-            {badge.unlocked && badge.dateEarned && (
-              <div className="flex items-center mt-2 text-sm text-indigo-600">
-                <CheckCircle className="h-4 w-4 mr-1 text-jungle-600" />
-                Earned on {badge.dateEarned}
+            {!badge.unlocked && badge.progress !== undefined && badge.total !== undefined && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-indigo-700">Progress</span>
+                  <span className="text-indigo-900 font-medium">
+                    {badge.progress} / {badge.total}
+                  </span>
+                </div>
+                <Progress value={(badge.progress / badge.total) * 100} className="h-2 bg-indigo-200" />
               </div>
             )}
 
-            {badge.points && <Badge className="mt-2 bg-sunset-600">+{badge.points} PATA Points</Badge>}
-          </div>
-
-          {!badge.unlocked && badge.progress !== undefined && badge.total !== undefined && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-indigo-700">Progress</span>
-                <span className="text-indigo-900 font-medium">
-                  {badge.progress} / {badge.total}
-                </span>
-              </div>
-              <Progress value={(badge.progress / badge.total) * 100} className="h-2 bg-indigo-200" />
-            </div>
-          )}
-
-          <div className="bg-indigo-100 p-3 rounded-lg border border-indigo-200">
-            <div className="flex items-start">
-              <Info className="h-5 w-5 text-indigo-600 mr-2 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-indigo-900">Badge Details</h4>
-                <p className="text-sm text-indigo-700">
-                  {badge.unlocked
-                    ? "This badge showcases your achievement in the PATA ecosystem. Share it with friends to show off your explorer status!"
-                    : "Continue exploring and completing challenges to unlock this badge and earn PATA points."}
-                </p>
+            <div className="bg-indigo-100 p-3 rounded-lg border border-indigo-200">
+              <div className="flex items-start">
+                <Info className="h-5 w-5 text-indigo-600 mr-2 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-indigo-900">Badge Details</h4>
+                  <p className="text-sm text-indigo-700">
+                    {badge.unlocked
+                      ? "This badge showcases your achievement in the PATA ecosystem. Share it with friends to show off your explorer status!"
+                      : "Continue exploring and completing challenges to unlock this badge and earn PATA points."}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          {badge.unlocked ? (
-            <Button onClick={handleShare} className="bg-sunset-600 hover:bg-sunset-700">
-              <Share2 className="mr-2 h-4 w-4" />
-              Share Badge
-            </Button>
-          ) : (
-            <Button variant="outline" className="border-indigo-300" onClick={() => setOpen(false)}>
-              <Lock className="mr-2 h-4 w-4" />
-              Continue Exploring
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            {badge.unlocked ? (
+              <Button onClick={handleShare} className="bg-sunset-600 hover:bg-sunset-700">
+                <Share2 className="mr-2 h-4 w-4" />
+                Share Badge
+              </Button>
+            ) : (
+              <Button variant="outline" className="border-indigo-300" onClick={() => setOpen(false)}>
+                <Lock className="mr-2 h-4 w-4" />
+                Continue Exploring
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
   )
 }
 

@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import {
   Wallet,
@@ -20,34 +18,352 @@ import {
   Copy,
   QrCode,
   ArrowRight,
+  Clock,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
+import { useConnect, useDisconnect } from 'wagmi'
+import { useAccount, useBalance, useChainId, useContractRead, useWriteContract, useWaitForTransactionReceipt, useContractReads } from 'wagmi'
+import { PATA_TOKEN_ADDRESSES, PATA_TOKEN_ABI, REWARD_NFT_ADDRESSES, REWARD_NFT_ABI } from '@/config/web3'
+import { parseEther, formatEther } from 'viem'
+import { useQuery } from '@tanstack/react-query'
+import { base, baseSepolia } from 'viem/chains'
+
+// Add local network configuration
+const localNetwork = {
+  id: 31337,
+  name: 'Hardhat Local',
+  network: 'hardhat',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ethereum',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: { http: ['http://127.0.0.1:8545'] },
+    public: { http: ['http://127.0.0.1:8545'] },
+  },
+} as const
+
+// Update the staking contract addresses type
+const STAKING_CONTRACT_ADDRESSES: { [key: number]: `0x${string}` } = {
+  [base.id]: "0x...", // Add your mainnet staking contract address
+  [baseSepolia.id]: "0x...", // Add your testnet staking contract address
+  [localNetwork.id]: "0x..." // Add your local network staking contract address
+} as const
+
+// Staking contract ABI and addresses
+const STAKING_CONTRACT_ABI = [
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "stake",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unstake",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "claimRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "user", "type": "address" }
+    ],
+    "name": "getStakedBalance",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "user", "type": "address" }
+    ],
+    "name": "getRewards",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const
+
+// Add NFT metadata interface
+interface NFTMetadata {
+  name: string
+  description: string
+  image: string
+  attributes: {
+    trait_type: string
+    value: string
+  }[]
+}
+
+// Add transaction interface
+interface Transaction {
+  hash: string
+  type: 'send' | 'receive' | 'mint' | 'stake' | 'upgrade'
+  amount: string
+  description: string
+  time: string
+  status: 'pending' | 'completed' | 'failed'
+}
 
 export function TokenWallet() {
-  const [connected, setConnected] = useState(true)
+  const { address, isConnected } = useAccount()
+  const chainId = useChainId()
   const [showQR, setShowQR] = useState(false)
-  const [walletAddress, setWalletAddress] = useState("0x7a16ff8270133f063aab6c9977183d9e72835428")
   const [isStaking, setIsStaking] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isStakingLoading, setIsStakingLoading] = useState(false)
+
+  // Get PATA token balance
+  const { data: pataTokenData, error: balanceError, refetch: refetchBalance } = useBalance({
+    address: address as `0x${string}` | undefined,
+    token: chainId ? (PATA_TOKEN_ADDRESSES[chainId as keyof typeof PATA_TOKEN_ADDRESSES] as `0x${string}`) : undefined,
+  })
+
+  // Get staked balance
+  const { data: stakedBalance } = useContractRead({
+    address: chainId ? STAKING_CONTRACT_ADDRESSES[chainId] : undefined,
+    abi: STAKING_CONTRACT_ABI,
+    functionName: 'getStakedBalance',
+    args: [address as `0x${string}`],
+    query: {
+      enabled: !!address && !!chainId,
+    }
+  })
+
+  // Get staking rewards
+  const { data: stakingRewards } = useContractRead({
+    address: chainId ? STAKING_CONTRACT_ADDRESSES[chainId] : undefined,
+    abi: STAKING_CONTRACT_ABI,
+    functionName: 'getRewards',
+    args: [address as `0x${string}`],
+    query: {
+      enabled: !!address && !!chainId,
+    }
+  })
+
+  // Prepare staking transactions
+  const { writeContract: stakeTokens, data: stakeData } = useWriteContract()
+  const { writeContract: unstakeTokens, data: unstakeData } = useWriteContract()
+  const { writeContract: claimRewards, data: claimData } = useWriteContract()
+
+  // Wait for staking transactions
+  const { isLoading: isStakingTx, isSuccess: stakeSuccess } = useWaitForTransactionReceipt({
+    hash: stakeData,
+  })
+
+  const { isLoading: isUnstakingTx, isSuccess: unstakeSuccess } = useWaitForTransactionReceipt({
+    hash: unstakeData,
+  })
+
+  const { isLoading: isClaimingTx, isSuccess: claimSuccess } = useWaitForTransactionReceipt({
+    hash: claimData,
+  })
+
+  // Get NFT balance
+  const { data: nftBalance } = useContractRead({
+    address: chainId ? REWARD_NFT_ADDRESSES[chainId] : undefined,
+    abi: REWARD_NFT_ABI,
+    functionName: 'balanceOf',
+    args: [address as `0x${string}`],
+    query: {
+      enabled: !!address && !!chainId,
+    }
+  })
+
+  // Get NFT token IDs
+  const { data: nftTokenIds } = useContractReads({
+    contracts: Array.from({ length: Number(nftBalance || 0) }, (_, i) => ({
+      address: REWARD_NFT_ADDRESSES[chainId as keyof typeof REWARD_NFT_ADDRESSES] as `0x${string}`,
+      abi: REWARD_NFT_ABI,
+      functionName: 'tokenOfOwnerByIndex',
+      args: [address as `0x${string}`, BigInt(i)],
+    })),
+    query: {
+      enabled: !!address && !!chainId && !!nftBalance && Number(nftBalance) > 0,
+    }
+  })
+
+  // Get NFT metadata
+  const { data: nftMetadata } = useQuery({
+    queryKey: ['nftMetadata', nftTokenIds],
+    queryFn: async () => {
+      if (!nftTokenIds) return []
+      
+      const metadata: NFTMetadata[] = []
+      for (const tokenId of nftTokenIds) {
+        try {
+          const response = await fetch(`/api/nft-metadata/${tokenId}`)
+          const data = await response.json()
+          metadata.push(data)
+        } catch (error) {
+          console.error('Error fetching NFT metadata:', error)
+        }
+      }
+      return metadata
+    },
+    enabled: !!nftTokenIds,
+  })
+
+  // Get transaction history
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['transactions', address],
+    queryFn: async () => {
+      if (!address) return []
+      
+      try {
+        const response = await fetch(`/api/transactions/${address}`)
+        const data = await response.json()
+        return data as Transaction[]
+      } catch (error) {
+        console.error('Error fetching transactions:', error)
+        return []
+      }
+    },
+    enabled: !!address,
+  })
+
+  const { connect, connectors } = useConnect()
+  const { disconnect } = useDisconnect()
+
+  useEffect(() => {
+    if (balanceError) {
+      toast({
+        title: "Error Loading Balance",
+        description: "There was an error loading your PATA token balance. Please try again.",
+        variant: "destructive",
+      })
+    }
+    setIsLoading(false)
+  }, [balanceError])
+
+  useEffect(() => {
+    if (stakeSuccess) {
+      toast({
+        title: "Staking Successful",
+        description: "Your tokens have been staked successfully.",
+      })
+      refetchBalance()
+    }
+  }, [stakeSuccess, refetchBalance])
+
+  useEffect(() => {
+    if (unstakeSuccess) {
+      toast({
+        title: "Unstaking Successful",
+        description: "Your tokens have been unstaked successfully.",
+      })
+      refetchBalance()
+    }
+  }, [unstakeSuccess, refetchBalance])
+
+  useEffect(() => {
+    if (claimSuccess) {
+      toast({
+        title: "Rewards Claimed",
+        description: "Your staking rewards have been claimed successfully.",
+      })
+      refetchBalance()
+    }
+  }, [claimSuccess, refetchBalance])
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(walletAddress)
-    toast({
-      title: "Address Copied",
-      description: "Wallet address copied to clipboard",
-    })
+    if (address) {
+      navigator.clipboard.writeText(address)
+      toast({
+        title: "Address Copied",
+        description: "Wallet address copied to clipboard",
+      })
+    }
   }
 
-  const toggleStaking = () => {
-    setIsStaking(!isStaking)
-    toast({
-      title: isStaking ? "Staking Disabled" : "Staking Enabled",
-      description: isStaking ? "Your PATA tokens are now available for use" : "Your PATA tokens are now earning yield",
-    })
+  const handleStake = async () => {
+    if (!address || !chainId) return;
+    
+    try {
+      await stakeTokens({
+        address: STAKING_CONTRACT_ADDRESSES[chainId],
+        abi: STAKING_CONTRACT_ABI,
+        functionName: 'stake',
+        args: [parseEther('1')], // Adjust amount as needed
+      });
+    } catch (error) {
+      console.error('Error staking tokens:', error);
+    }
+  };
+
+  const handleUnstake = async () => {
+    if (!address || !chainId) return;
+    
+    try {
+      await unstakeTokens({
+        address: STAKING_CONTRACT_ADDRESSES[chainId],
+        abi: STAKING_CONTRACT_ABI,
+        functionName: 'unstake',
+      });
+    } catch (error) {
+      console.error('Error unstaking tokens:', error);
+    }
+  };
+
+  const handleClaimRewards = async () => {
+    if (!address || !chainId) return;
+    
+    try {
+      await claimRewards({
+        address: STAKING_CONTRACT_ADDRESSES[chainId],
+        abi: STAKING_CONTRACT_ABI,
+        functionName: 'claimRewards',
+      });
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+    }
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-indigo-50 p-4">
+        <Card className="w-full max-w-md bg-white">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-indigo-900">Connect Wallet</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center space-y-4">
+            <p className="text-indigo-700 text-center mb-4">
+              Connect your wallet to view your PATA tokens and rewards
+            </p>
+            <Button
+              onClick={() => connect({ connector: connectors[0] })}
+              className="w-full"
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              Connect Wallet
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -66,10 +382,20 @@ export function TokenWallet() {
               <div>
                 <h2 className="text-lg font-bold">PATA Balance</h2>
                 <div className="flex items-baseline mt-1">
-                  <span className="text-3xl font-bold">1,250</span>
-                  <span className="ml-2 text-sm text-indigo-200">PATA</span>
+                  {isLoading ? (
+                    <span className="text-3xl font-bold animate-pulse">Loading...</span>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold">
+                        {pataTokenData?.formatted || '0'}
+                      </span>
+                      <span className="ml-2 text-sm text-indigo-200">PATA</span>
+                    </>
+                  )}
                 </div>
-                <p className="text-xs text-indigo-200 mt-1">≈ $125.00 USD</p>
+                <p className="text-xs text-indigo-200 mt-1">
+                  ≈ ${(Number(pataTokenData?.formatted || 0) * 0.1).toFixed(2)} USD
+                </p>
               </div>
               <div className="flex flex-col items-end">
                 <Badge className="bg-gold-600 text-indigo-900 mb-2">Level 5 Explorer</Badge>
@@ -91,7 +417,12 @@ export function TokenWallet() {
             {showQR ? (
               <div className="mt-4 flex flex-col items-center">
                 <div className="bg-white p-2 rounded-lg">
-                  <Image src="/placeholder.svg?height=150&width=150" alt="QR Code" width={150} height={150} />
+                  <Image 
+                    src={`https://chart.googleapis.com/chart?cht=qr&chl=${address}&chs=150x150&choe=UTF-8&chld=L|2`} 
+                    alt="QR Code" 
+                    width={150} 
+                    height={150} 
+                  />
                 </div>
                 <p className="text-xs mt-2 text-center text-indigo-200">Scan to send PATA tokens to this wallet</p>
                 <Button
@@ -123,7 +454,7 @@ export function TokenWallet() {
               </Button>
             </div>
             <div className="bg-muted p-2 rounded-md text-xs font-mono overflow-hidden text-ellipsis">
-              {walletAddress}
+              {address}
             </div>
 
             <div className="mt-4 flex items-center justify-between">
@@ -131,17 +462,64 @@ export function TokenWallet() {
                 <Badge className={`${isStaking ? "bg-jungle-600" : "bg-indigo-600"} mr-2`}>
                   {isStaking ? "Staking Active" : "Not Staking"}
                 </Badge>
-                {isStaking && <span className="text-xs text-jungle-600">+5% APY</span>}
+                {isStaking && (
+                  <div className="flex items-center">
+                    <span className="text-xs text-jungle-600 mr-2">+5% APY</span>
+                    <span className="text-xs text-jungle-600">
+                      Rewards: {formatEther(stakingRewards || BigInt(0))} PATA
+                    </span>
+                  </div>
+                )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`border-indigo-300 ${isStaking ? "text-jungle-600" : "text-indigo-700"}`}
-                onClick={toggleStaking}
-              >
-                {isStaking ? <Lock className="mr-1 h-4 w-4" /> : <Unlock className="mr-1 h-4 w-4" />}
-                {isStaking ? "Unstake Tokens" : "Stake Tokens"}
-              </Button>
+              <div className="flex space-x-2">
+                {isStaking ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-indigo-300 text-jungle-600"
+                      onClick={handleUnstake}
+                      disabled={isStakingLoading || isUnstakingTx}
+                    >
+                      {isUnstakingTx ? (
+                        <Clock className="mr-1 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Unlock className="mr-1 h-4 w-4" />
+                      )}
+                      Unstake
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-indigo-300 text-jungle-600"
+                      onClick={handleClaimRewards}
+                      disabled={isStakingLoading || isClaimingTx || !stakingRewards || stakingRewards === BigInt(0)}
+                    >
+                      {isClaimingTx ? (
+                        <Clock className="mr-1 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Award className="mr-1 h-4 w-4" />
+                      )}
+                      Claim Rewards
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-indigo-300 text-indigo-700"
+                    onClick={handleStake}
+                    disabled={isStakingLoading || isStakingTx || !pataTokenData || Number(pataTokenData.formatted) < 100}
+                  >
+                    {isStakingTx ? (
+                      <Clock className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Lock className="mr-1 h-4 w-4" />
+                    )}
+                    Stake Tokens
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </Card>
@@ -167,7 +545,9 @@ export function TokenWallet() {
                     <Gem className="mr-2 h-5 w-5 text-electric-600" /> Your NFT Collection
                   </h3>
                   <div className="flex items-center">
-                    <Badge className="mr-2 bg-indigo-600">12 NFTs</Badge>
+                    <Badge className="mr-2 bg-indigo-600">
+                      {nftBalance?.toString() || '0'} NFTs
+                    </Badge>
                     <Button variant="outline" size="sm" className="border-indigo-300">
                       <RefreshCw className="h-4 w-4" />
                     </Button>
@@ -175,34 +555,16 @@ export function TokenWallet() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <NFTCard
-                    name="Traditional Mask"
-                    image="/placeholder.svg?height=120&width=120"
-                    rarity="Rare"
-                    acquired="2 days ago"
-                    tokenId="#8273"
-                  />
-                  <NFTCard
-                    name="Ancient Drum"
-                    image="/placeholder.svg?height=120&width=120"
-                    rarity="Common"
-                    acquired="5 days ago"
-                    tokenId="#4129"
-                  />
-                  <NFTCard
-                    name="Tribal Necklace"
-                    image="/placeholder.svg?height=120&width=120"
-                    rarity="Uncommon"
-                    acquired="1 week ago"
-                    tokenId="#6392"
-                  />
-                  <NFTCard
-                    name="Mystery Artifact"
-                    image="/placeholder.svg?height=120&width=120"
-                    rarity="Legendary"
-                    acquired="3 days ago"
-                    tokenId="#1038"
-                  />
+                  {nftMetadata?.map((metadata, index) => (
+                    <NFTCard
+                      key={nftTokenIds?.[index]?.toString()}
+                      name={metadata.name}
+                      image={metadata.image}
+                      rarity={metadata.attributes.find(attr => attr.trait_type === 'Rarity')?.value as any}
+                      acquired={new Date().toLocaleDateString()}
+                      tokenId={`#${nftTokenIds?.[index]?.toString()}`}
+                    />
+                  ))}
                 </div>
 
                 <div className="mt-6 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
@@ -238,56 +600,23 @@ export function TokenWallet() {
                 </h3>
 
                 <ScrollArea className="h-[300px] pr-4">
-                  <div className="space-y-3">
-                    <TransactionCard
-                      type="receive"
-                      amount="150"
-                      description="Treasure Discovery Reward"
-                      time="2 hours ago"
-                      status="completed"
-                      hash="0x8f...3e2a"
-                    />
-                    <TransactionCard
-                      type="send"
-                      amount="50"
-                      description="NFT Purchase"
-                      time="Yesterday"
-                      status="completed"
-                      hash="0x7a...9c4b"
-                    />
-                    <TransactionCard
-                      type="receive"
-                      amount="300"
-                      description="Challenge Completion"
-                      time="3 days ago"
-                      status="completed"
-                      hash="0x2d...7f1c"
-                    />
-                    <TransactionCard
-                      type="mint"
-                      amount="1"
-                      description="NFT Minting - Tribal Mask"
-                      time="4 days ago"
-                      status="completed"
-                      hash="0x3e...5a2d"
-                    />
-                    <TransactionCard
-                      type="stake"
-                      amount="200"
-                      description="Token Staking"
-                      time="1 week ago"
-                      status="completed"
-                      hash="0x9c...2e4f"
-                    />
-                    <TransactionCard
-                      type="upgrade"
-                      amount="2"
-                      description="NFT Upgrade - Common to Uncommon"
-                      time="2 weeks ago"
-                      status="completed"
-                      hash="0x5f...8d3a"
-                    />
-                  </div>
+                  {transactions && transactions.length > 0 ? (
+                    transactions.map((transaction) => (
+                      <TransactionCard
+                        key={transaction.hash}
+                        type={transaction.type}
+                        amount={transaction.amount}
+                        description={transaction.description}
+                        time={transaction.time}
+                        status={transaction.status}
+                        hash={transaction.hash}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center text-muted-foreground py-4">
+                      No transactions found
+                    </div>
+                  )}
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -297,79 +626,25 @@ export function TokenWallet() {
             <Card className="border-t-0 rounded-t-none game-card">
               <CardContent className="p-4">
                 <h3 className="text-lg font-bold text-indigo-900 mb-3 flex items-center">
-                  <BarChart2 className="mr-2 h-5 w-5 text-gold-600" /> PATA Token Economics
+                  <BarChart2 className="mr-2 h-5 w-5 text-electric-600" /> Tokenomics
                 </h3>
 
-                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-4">
-                  <h4 className="font-bold text-indigo-900 mb-2">Token Distribution</h4>
-                  <div className="h-40 bg-white rounded-lg flex items-center justify-center mb-3">
-                    <BarChart2 className="h-8 w-8 text-indigo-400" />
-                    <span className="ml-2 text-indigo-400">Distribution Chart</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full bg-indigo-600 mr-2"></div>
-                      <span className="text-indigo-900">Players: 40%</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full bg-sunset-600 mr-2"></div>
-                      <span className="text-indigo-900">Partners: 20%</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full bg-jungle-600 mr-2"></div>
-                      <span className="text-indigo-900">Development: 25%</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 rounded-full bg-gold-600 mr-2"></div>
-                      <span className="text-indigo-900">Reserve: 15%</span>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="space-y-4">
-                  <div>
-                    <h4 className="font-bold text-indigo-900 mb-2">Token Utility</h4>
-                    <div className="space-y-2">
-                      <TokenUtilityItem
-                        title="Treasure Upgrades"
-                        description="Combine and upgrade NFTs to create rarer items"
-                        icon={<Gem className="h-5 w-5" />}
-                      />
-                      <TokenUtilityItem
-                        title="Reward Redemption"
-                        description="Exchange tokens for real-world rewards at partners"
-                        icon={<Award className="h-5 w-5" />}
-                      />
-                      <TokenUtilityItem
-                        title="Staking Rewards"
-                        description="Earn yield by staking your tokens"
-                        icon={<Coins className="h-5 w-5" />}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-indigo-900 mb-2">Point System Conversion</h4>
-                    <div className="space-y-2">
-                      <PointConversionItem type="Common" pointRange="5-20" color="bg-indigo-600" />
-                      <PointConversionItem type="Rare" pointRange="50-200" color="bg-electric-600" />
-                      <PointConversionItem type="Legendary" pointRange="500-1,000" color="bg-gold-600" />
-                      <PointConversionItem type="Mythical" pointRange="5,000-10,000" color="bg-neon-600" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 p-3 bg-indigo-100 rounded-lg border border-indigo-200">
-                  <div className="flex items-start">
-                    <Coins className="h-5 w-5 text-gold-600 mr-2 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-indigo-900">Hybrid Blockchain Approach</h4>
-                      <p className="text-sm text-indigo-700">
-                        PATA uses Layer-2 solutions to reduce gas fees and environmental impact. NFTs are only minted
-                        on-chain when traded or sold.
-                      </p>
-                    </div>
-                  </div>
+                  <TokenUtilityItem
+                    title="Staking Rewards"
+                    description="Earn 5% APY by staking your PATA tokens"
+                    icon={<Lock className="h-5 w-5 text-jungle-600" />}
+                  />
+                  <TokenUtilityItem
+                    title="NFT Upgrades"
+                    description="Use PATA tokens to upgrade your NFT collection"
+                    icon={<Gem className="h-5 w-5 text-electric-600" />}
+                  />
+                  <TokenUtilityItem
+                    title="Community Governance"
+                    description="Participate in community decisions with your tokens"
+                    icon={<Award className="h-5 w-5 text-gold-600" />}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -535,32 +810,12 @@ function TokenUtilityItem({
   icon: React.ReactNode
 }) {
   return (
-    <div className="flex items-start p-3 bg-white rounded-lg border border-indigo-200">
-      <div className="bg-indigo-100 p-2 rounded-full mr-3 text-indigo-600">{icon}</div>
+    <div className="flex items-start space-x-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+      <div className="p-2 bg-white rounded-lg">{icon}</div>
       <div>
-        <h5 className="font-medium text-indigo-900">{title}</h5>
+        <h4 className="font-medium text-indigo-900">{title}</h4>
         <p className="text-sm text-indigo-700">{description}</p>
       </div>
-    </div>
-  )
-}
-
-function PointConversionItem({
-  type,
-  pointRange,
-  color,
-}: {
-  type: string
-  pointRange: string
-  color: string
-}) {
-  return (
-    <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-indigo-200">
-      <div className="flex items-center">
-        <div className={`w-3 h-3 rounded-full ${color} mr-2`}></div>
-        <span className="font-medium text-indigo-900">{type} Treasures</span>
-      </div>
-      <Badge className={color}>{pointRange} points</Badge>
     </div>
   )
 }

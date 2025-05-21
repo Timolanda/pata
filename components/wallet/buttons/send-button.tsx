@@ -46,16 +46,16 @@ export function SendButton({ tokenAddress }: SendButtonProps) {
         args: [recipient, value],
       })
 
-      toast({
+        toast({
         title: "Transaction Submitted",
         description: "Your transfer is being processed...",
-      })
+        })
     } catch (error) {
-      toast({
+        toast({
         title: "Error",
         description: "Failed to send tokens. Please try again.",
-        variant: "destructive",
-      })
+          variant: "destructive",
+        })
     }
   }
 
@@ -77,24 +77,24 @@ export function SendButton({ tokenAddress }: SendButtonProps) {
         <div className="space-y-4">
           <div>
             <Label htmlFor="recipient">Recipient Address</Label>
-            <Input
-              id="recipient"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
+                <Input
+                  id="recipient"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
               placeholder="0x..."
             />
           </div>
           <div>
             <Label htmlFor="amount">Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              <Input
+                id="amount"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
             />
           </div>
-        </div>
+              </div>
         <DialogFooter>
           <Button
             onClick={handleSend}

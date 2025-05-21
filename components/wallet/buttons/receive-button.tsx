@@ -22,8 +22,8 @@ export function ReceiveButton() {
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(address || "")
-      toast({
-        title: "Address Copied",
+    toast({
+      title: "Address Copied",
         description: "Your wallet address has been copied to clipboard.",
       })
     } catch (error) {

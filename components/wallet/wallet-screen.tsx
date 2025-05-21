@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import {
   Wallet,
@@ -15,7 +15,7 @@ import {
   Coins,
   Award,
   Gem,
-  History,
+  X,
   Gift,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,24 +24,125 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
-import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useAccount, useBalance } from 'wagmi'
-import { formatEther } from 'viem'
+import { ConnectWallet, Wallet as OnchainWallet, WalletDropdown, WalletDropdownDisconnect } from '@coinbase/onchainkit/wallet'
+import { useAccount, useBalance, useChainId, useContractRead, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { PATA_TOKEN_ADDRESSES, PATA_TOKEN_ABI, REWARD_NFT_ADDRESSES, REWARD_NFT_ABI } from '@/config/web3'
+import { parseEther, formatEther } from 'viem'
 import { SendButton } from './buttons/send-button'
 import { ReceiveButton } from './buttons/receive-button'
 import { TransactionHistory } from './transaction-history'
 import { Rewards } from './rewards'
-
-// Replace this with your deployed PATA token address
-const PATA_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000'
+import { Progress } from '@/components/ui/progress'
+import { useToast } from '@/components/ui/use-toast'
 
 export function WalletScreen() {
-  const [activeTab, setActiveTab] = useState('balance')
   const { address, isConnected } = useAccount()
-  const { data: balance } = useBalance({
-    address,
-    token: PATA_TOKEN_ADDRESS as `0x${string}`,
+  const chainId = useChainId()
+  const [showQR, setShowQR] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isClaiming, setIsClaiming] = useState(false)
+  const [burnAmount, setBurnAmount] = useState('100')
+  const { toast } = useToast()
+
+  // Get PATA token balance
+  const { data: pataTokenData, error: balanceError } = useBalance({
+    address: address as `0x${string}` | undefined,
+    token: chainId ? (PATA_TOKEN_ADDRESSES[chainId as keyof typeof PATA_TOKEN_ADDRESSES] as `0x${string}`) : undefined,
   })
+
+  // Contract write hooks
+  const { writeContract: burnTokens } = useWriteContract()
+  const { writeContract: mintNFT } = useWriteContract()
+
+  // Transaction receipt hooks
+  const { data: burnReceipt, isPending: isBurnPending } = useWaitForTransactionReceipt()
+  const { data: mintReceipt, isPending: isMintPending } = useWaitForTransactionReceipt()
+
+  useEffect(() => {
+    if (balanceError) {
+      toast({
+        title: "Error Loading Balance",
+        description: "There was an error loading your PATA token balance. Please try again.",
+        variant: "destructive",
+      })
+    }
+    setIsLoading(false)
+  }, [balanceError])
+
+  const handleBurnAndMint = async () => {
+    if (!address) {
+      toast({
+        title: 'Error',
+        description: 'Please connect your wallet first',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setIsLoading(true)
+
+      // Burn PATA tokens
+      const burnResult = await burnTokens({
+        abi: PATA_TOKEN_ABI,
+        address: PATA_TOKEN_ADDRESSES[1] as `0x${string}`,
+        functionName: 'burn',
+        args: [parseEther(burnAmount)],
+      })
+
+      if (!burnResult) {
+        throw new Error('Burn transaction failed')
+      }
+
+      // Wait for burn transaction to be mined
+      const burnTxReceipt = await burnReceipt
+      if (!burnTxReceipt) {
+        throw new Error('Failed to get burn transaction receipt')
+      }
+
+      // Mint NFT
+      const mintResult = await mintNFT({
+        abi: REWARD_NFT_ABI,
+        address: REWARD_NFT_ADDRESSES[1] as `0x${string}`,
+        functionName: 'mint',
+        args: [address],
+      })
+
+      if (!mintResult) {
+        throw new Error('Mint transaction failed')
+      }
+
+      // Wait for mint transaction to be mined
+      const mintTxReceipt = await mintReceipt
+      if (!mintTxReceipt) {
+        throw new Error('Failed to get mint transaction receipt')
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Successfully burned PATA tokens and minted NFT',
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleCopy = () => {
+    if (address) {
+      navigator.clipboard.writeText(address)
+    toast({
+      title: "Address Copied",
+      description: "Wallet address copied to clipboard",
+    })
+    }
+  }
 
   if (!isConnected) {
     return (
@@ -54,7 +155,15 @@ export function WalletScreen() {
             <p className="text-indigo-700 text-center mb-4">
               Connect your wallet to view your PATA tokens and rewards
             </p>
-            <ConnectButton />
+            <OnchainWallet>
+              <ConnectWallet>
+                <Wallet className="h-6 w-6 mr-2" />
+                <span>Connect Wallet</span>
+              </ConnectWallet>
+              <WalletDropdown>
+                <WalletDropdownDisconnect />
+              </WalletDropdown>
+            </OnchainWallet>
           </CardContent>
         </Card>
       </div>
@@ -67,18 +176,22 @@ export function WalletScreen() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-2xl font-bold text-indigo-900">PATA Wallet</CardTitle>
-            <ConnectButton />
+            <OnchainWallet>
+              <WalletDropdown>
+                <WalletDropdownDisconnect />
+              </WalletDropdown>
+            </OnchainWallet>
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs defaultValue="balance">
             <TabsList className="grid grid-cols-3 gap-4 mb-6">
               <TabsTrigger value="balance" className="flex items-center gap-2">
                 <Wallet className="h-4 w-4" />
                 Balance
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="h-4 w-4" />
+                <Clock className="h-4 w-4" />
                 History
               </TabsTrigger>
               <TabsTrigger value="rewards" className="flex items-center gap-2">
@@ -94,7 +207,11 @@ export function WalletScreen() {
                     <div>
                       <h3 className="text-sm font-medium text-indigo-700">PATA Balance</h3>
                       <p className="text-3xl font-bold text-indigo-900">
-                        {balance ? formatEther(balance.value) : '0.00'} PATA
+                        {isLoading ? (
+                          <span className="animate-pulse">Loading...</span>
+                        ) : (
+                          `${pataTokenData?.formatted || '0'} PATA`
+                        )}
                       </p>
                     </div>
 
@@ -106,8 +223,20 @@ export function WalletScreen() {
                     </div>
 
                     <div className="flex gap-4">
-                      <SendButton tokenAddress={PATA_TOKEN_ADDRESS} />
-                      <ReceiveButton />
+                      <Button
+                        className="flex-1 bg-sunset-600 hover:bg-sunset-700"
+                        onClick={() => setShowQR(true)}
+                      >
+                        <ArrowDownLeft className="mr-2 h-4 w-4" />
+                        Receive
+                      </Button>
+                      <Button
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                        onClick={handleCopy}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Address
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -117,7 +246,7 @@ export function WalletScreen() {
             <TabsContent value="history">
               <Card>
                 <CardContent className="pt-6">
-                  <TransactionHistory tokenAddress={PATA_TOKEN_ADDRESS} />
+                  <TransactionHistory tokenAddress={PATA_TOKEN_ADDRESSES[chainId as keyof typeof PATA_TOKEN_ADDRESSES] as `0x${string}`} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -125,7 +254,25 @@ export function WalletScreen() {
             <TabsContent value="rewards">
               <Card>
                 <CardContent className="pt-6">
-                  <Rewards />
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-indigo-900 mb-2">Claim Your Reward</h3>
+                      <p className="text-sm text-indigo-700 mb-4">
+                        Burn 100 PATA tokens to mint a unique reward NFT
+                      </p>
+                      <Button
+                        className="bg-gold-600 hover:bg-gold-700"
+                        onClick={handleBurnAndMint}
+                        disabled={isLoading || !address}
+                      >
+                        {isLoading ? 'Processing...' : 'Burn & Mint'}
+                      </Button>
+                    </div>
+
+                    {(isBurnPending || isMintPending) && (
+                      <Progress value={isBurnPending ? 50 : 100} className="w-full" />
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -263,4 +410,8 @@ function RewardCard({
     </Card>
   )
 }
+
+// Test addresses (Base Sepolia)
+PATA_TOKEN_ADDRESSES[84532] = '0x1234567890123456789012345678901234567890'
+REWARD_NFT_ADDRESSES[84532] = '0x0987654321098765432109876543210987654321'
 

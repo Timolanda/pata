@@ -54,7 +54,7 @@ export function RedeemButton({
     }
 
     onRedeem?.(reward.id)
-    
+
     toast({
       title: "Reward Redeemed",
       description: `You've successfully redeemed "${reward.title}"`,

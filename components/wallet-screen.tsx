@@ -41,22 +41,22 @@ export function WalletScreen() {
 
   useEffect(() => {
     if (balanceError) {
-      toast({
+    toast({
         title: "Error Loading Balance",
         description: "There was an error loading your PATA token balance. Please try again.",
         variant: "destructive",
-      })
-    }
+    })
+  }
     setIsLoading(false)
   }, [balanceError])
 
   const handleCopy = () => {
     if (address) {
       navigator.clipboard.writeText(address)
-      toast({
-        title: "Address Copied",
-        description: "Wallet address copied to clipboard",
-      })
+    toast({
+      title: "Address Copied",
+      description: "Wallet address copied to clipboard",
+    })
     }
   }
 
@@ -142,7 +142,7 @@ export function WalletScreen() {
                           <span className="text-3xl font-bold">
                             {pataTokenData?.formatted || '0'}
                           </span>
-                          <span className="ml-2 text-sm text-indigo-200">PATA</span>
+                      <span className="ml-2 text-sm text-indigo-200">PATA</span>
                         </>
                       )}
                     </div>
