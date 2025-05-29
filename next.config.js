@@ -6,6 +6,7 @@ const nextConfig = {
       'xcxvgctmaynmuqxvtrwh.supabase.co',
       'hebbkx1anhila5yf.public.blob.vercel-storage.com'
     ],
+    dangerouslyAllowSVG: true,
   },
 }
 

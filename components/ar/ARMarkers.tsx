@@ -2,7 +2,25 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { TREASURE_MARKERS, TreasureMarker } from './markers/treasureMarkers'
+import { TREASURE_MARKERS } from './markers/arMarkers'
+import { LocationTreasure } from './shared/types'
+
+// Define TreasureMarker type to match the actual structure in TREASURE_MARKERS
+interface TreasureMarker {
+  id: string
+  model: string
+  color: string
+  behavior?: LocationTreasure['behavior']
+  location: LocationTreasure
+  // Add default values for required properties
+  position?: [number, number, number]
+  rotation?: [number, number, number]
+  scale?: [number, number, number]
+  type?: string
+  patternUrl?: string
+  barcodeValue?: number
+  matrixCodeType?: string
+}
 
 // Declare A-Frame elements for TypeScript
 declare global {
@@ -52,13 +70,18 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
   }, [onMarkerFound, onMarkerLost])
 
   const renderTreasure = (marker: TreasureMarker) => {
+    // Default values for position, rotation, and scale if not provided
+    const position = marker.position || [0, 0.5, 0];
+    const rotation = marker.rotation || [0, 0, 0];
+    const scale = marker.scale || [0.5, 0.5, 0.5];
+    
     if (marker.model) {
       return (
         <a-entity
           gltf-model={marker.model}
-          position={marker.position.join(' ')}
-          rotation={marker.rotation.join(' ')}
-          scale={marker.scale.join(' ')}
+          position={position.join(' ')}
+          rotation={rotation.join(' ')}
+          scale={scale.join(' ')}
           animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;"
         />
       )
@@ -66,9 +89,9 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
 
     return (
       <a-box
-        position={marker.position.join(' ')}
-        rotation={marker.rotation.join(' ')}
-        scale={marker.scale.join(' ')}
+        position={position.join(' ')}
+        rotation={rotation.join(' ')}
+        scale={scale.join(' ')}
         color={marker.color}
         class="clickable"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;"

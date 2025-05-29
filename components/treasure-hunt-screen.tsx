@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ProximityNotification } from '@/components/proximity-notification'
 import type { Treasure, PlayerPosition } from '@/types/game'
-import { TREASURE_LOCATIONS } from './ar/locations/treasureLocations'
+import { LOCATION_BASED_TREASURES } from './ar/locations/treasureLocations'
 import type { ARSceneProps } from '@/components/ARScene'
 
 // Dynamically import ARScene with proper typing
@@ -43,7 +43,7 @@ export function TreasureHuntScreen() {
   }
 
   const handleTreasureClaimed = (treasureId: string) => {
-    const treasure = TREASURE_LOCATIONS.find(t => t.id === treasureId)
+    const treasure = LOCATION_BASED_TREASURES.find(t => t.id === treasureId)
     if (treasure) {
       setClaimedTreasures(prev => [...prev, treasureId])
       setActiveTreasure(treasure)
@@ -55,7 +55,7 @@ export function TreasureHuntScreen() {
     setCurrentPosition(position)
     
     // Update distance to nearest unclaimed treasure
-    const unclaimedTreasures = TREASURE_LOCATIONS.filter(t => 
+    const unclaimedTreasures = LOCATION_BASED_TREASURES.filter(t => 
       !claimedTreasures.includes(t.id) && t.latitude && t.longitude
     )
     
@@ -135,7 +135,7 @@ export function TreasureHuntScreen() {
         <AframeScene 
           onMarkerFound={handleMarkerFound}
           onMarkerLost={handleMarkerLost}
-          treasures={TREASURE_LOCATIONS}
+          treasures={LOCATION_BASED_TREASURES}
           onTreasureClaimed={handleTreasureClaimed}
           claimedTreasures={claimedTreasures}
           onPositionUpdate={handlePositionUpdate}

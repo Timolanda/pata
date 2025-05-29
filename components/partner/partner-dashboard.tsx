@@ -30,6 +30,7 @@ import { ScheduleEventButton } from "@/components/partner/buttons/schedule-event
 import { ConfigureSettingsButton } from "@/components/partner/buttons/configure-settings-button"
 import { AddTreasureButton } from "@/components/partner/buttons/add-treasure-button"
 import { PremiumPartnerBadge } from "@/components/partner/buttons/premium-partner-badge"
+import { TreasureHeatmap } from "@/components/partner/TreasureHeatmap"
 
 export function PartnerDashboard() {
   const [partnershipTier, setPartnershipTier] = useState("premium")
@@ -220,9 +221,8 @@ export function PartnerDashboard() {
               <CardDescription>Where users are finding treasures</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80 w-full bg-indigo-50 rounded-lg flex items-center justify-center">
-                <MapPin className="h-10 w-10 text-indigo-400" />
-                <span className="ml-2 text-indigo-400">Location Heatmap</span>
+              <div className="h-80 w-full rounded-lg">
+                <TreasureHeatmap />
               </div>
             </CardContent>
           </Card>

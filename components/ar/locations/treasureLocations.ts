@@ -1,75 +1,84 @@
 // components/ar/locations/treasureLocations.ts
-import { Treasure } from '@/types/game'
+import { LocationTreasure, TreasureType } from '../shared/types'
 
 // Define different types of treasures
 export const TREASURE_TYPES = {
-  MASK: 'mask',
-  SCROLL: 'scroll',
-  SHIELD: 'shield',
-  JEWELRY: 'jewelry',
-  DRUM: 'drum'
+  MASK: 'mask' as TreasureType,
+  SCROLL: 'scroll' as TreasureType,
+  SHIELD: 'shield' as TreasureType,
+  JEWELRY: 'jewelry' as TreasureType,
+  DRUM: 'drum' as TreasureType
 } as const
 
 // Define treasure locations with more details
-export const TREASURE_LOCATIONS: Treasure[] = [
-  // Marker-based treasures (for AR markers)
+export const LOCATION_BASED_TREASURES: LocationTreasure[] = [
   {
-    id: 'african-mask-1',
-    name: 'Traditional African Mask',
+    id: 'treasure-1',
+    name: 'Nairobi National Museum Treasure',
     model: '/models/african_mask.glb',
     points: 150,
-    targetIndex: 0,
-    hint: 'Look for the first mask near the entrance.',
+    latitude: -1.2701,
+    longitude: 36.8121,
+    hint: 'Look for the grand entrance with stone pillars',
     type: TREASURE_TYPES.MASK,
-    rarity: 'common'
+    rarity: 'common',
+    description: 'Ancient African mask treasure near the museum entrance',
+    reward: {
+      type: 'token',
+      value: 100,
+      description: 'Museum Explorer Token',
+      rarity: 'common',
+      collection: 'cultural_heritage'
+    },
+    behavior: {
+      animation: 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;',
+      interaction: 'hover',
+      sound: '/sounds/museum-ambience.mp3',
+      particleEffect: 'gold-sparkles',
+      timeOfDay: 'day',
+      weatherCondition: 'any'
+    }
   },
   {
-    id: 'ancient-scroll-1',
-    name: 'Ancient Scroll',
-    model: '/models/ancient_scroll.glb',
+    id: 'treasure-2',
+    name: 'Uhuru Park Treasure',
+    model: '/models/ancient_rolled_document.glb',
     points: 100,
-    targetIndex: 1,
-    hint: 'Find the scroll in the main hall.',
+    latitude: -1.2833,
+    longitude: 36.8167,
+    hint: 'Find the fountain with the tallest water jet',
     type: TREASURE_TYPES.SCROLL,
-    rarity: 'rare'
-  },
-  // Location-based treasures (for GPS)
-  {
-    id: 'african-mask-2',
-    name: 'Traditional African Mask',
-    model: '/models/african_mask.glb',
-    points: 150,
-    latitude: -1.2921,  // Example: Nairobi National Museum
-    longitude: 36.8219,
-    hint: 'This treasure is located near the old library building.',
-    type: TREASURE_TYPES.MASK,
-    rarity: 'uncommon'
-  },
-  {
-    id: 'tribal-shield-1',
-    name: 'Tribal Shield',
-    model: '/models/tribal_shield.glb',
-    points: 200,
-    latitude: -1.2922,
-    longitude: 36.8220,
-    hint: 'Look for this treasure near the garden.',
-    type: TREASURE_TYPES.SHIELD,
-    rarity: 'rare'
+    rarity: 'common',
+    description: 'Ancient scroll hidden near the central fountain',
+    reward: {
+      type: 'badge',
+      value: 1,
+      description: 'Park Explorer Badge',
+      rarity: 'common',
+      collection: 'park_explorer'
+    },
+    behavior: {
+      animation: 'property: position; to: 0 1.2 0; dir: alternate; dur: 2000; loop: true',
+      interaction: 'click',
+      sound: '/sounds/water-flowing.mp3',
+      particleEffect: 'water-splash',
+      timeOfDay: 'any',
+      weatherCondition: 'any'
+    }
   }
 ]
 
 // Helper functions for treasure management
-export const getTreasuresByType = (type: Treasure['type']) => {
-  return TREASURE_LOCATIONS.filter(treasure => treasure.type === type)
+export const getTreasuresByType = (type: TreasureType) => {
+  return LOCATION_BASED_TREASURES.filter(treasure => treasure.type === type)
 }
 
-export const getTreasuresByRarity = (rarity: Treasure['rarity']) => {
-  return TREASURE_LOCATIONS.filter(treasure => treasure.rarity === rarity)
+export const getTreasuresByRarity = (rarity: LocationTreasure['rarity']) => {
+  return LOCATION_BASED_TREASURES.filter(treasure => treasure.rarity === rarity)
 }
 
 export const getNearbyTreasures = (latitude: number, longitude: number, radius: number) => {
-  return TREASURE_LOCATIONS.filter(treasure => {
-    if (!treasure.latitude || !treasure.longitude) return false
+  return LOCATION_BASED_TREASURES.filter(treasure => {
     const distance = calculateDistance(
       latitude,
       longitude,
@@ -94,12 +103,3 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
   return R * c
 }
-
-// You can also organize treasures by location
-export const LOCATION_BASED_TREASURES: Treasure[] = TREASURE_LOCATIONS.filter(
-  treasure => treasure.latitude && treasure.longitude
-)
-
-export const MARKER_BASED_TREASURES: Treasure[] = TREASURE_LOCATIONS.filter(
-  treasure => treasure.targetIndex !== undefined
-)

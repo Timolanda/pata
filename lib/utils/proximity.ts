@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
-import { ProximityNotification } from '../../components/proximity-notification' // ✅ this is correct!
-import { TREASURE_MARKERS } from '@/components/ar/markers/treasureMarkers'
+import { ProximityNotification } from '../../components/proximity-notification'
+import { LOCATION_BASED_TREASURES } from '@/components/ar/locations/treasureLocations'
+import type { MarkerTreasure, LocationTreasure } from '@/components/ar/shared/types'
 
 // Function to calculate the distance in kilometers
 export function getDistanceInKm(
@@ -44,11 +45,11 @@ export function calculateDistance(loc1: Coordinates, loc2: Coordinates): number 
 export function findNearbyTreasures(
   userLocation: Coordinates,
   radius: number = 0.015 // 15 meters in kilometers
-): typeof TREASURE_MARKERS {
-  return TREASURE_MARKERS.filter(treasure => {
+): LocationTreasure[] {
+  return LOCATION_BASED_TREASURES.filter(treasure => {
     const distance = calculateDistance(userLocation, {
-      latitude: treasure.location.latitude,
-      longitude: treasure.location.longitude
+      latitude: treasure.latitude,
+      longitude: treasure.longitude
     })
     return distance <= radius
   })

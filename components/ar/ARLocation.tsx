@@ -2,9 +2,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TREASURE_MARKERS } from './markers/treasureMarkers'
+import { TREASURE_MARKERS } from './markers/arMarkers'
 import type { PlayerPosition } from '@/types/game'
 import { useSoundManager } from '../SoundManager'
+import { LocationTreasure } from './shared/types'
+
+// Define a type for the treasure markers
+interface TreasureMarker {
+  id: string
+  model: string
+  color?: string
+  behavior?: LocationTreasure['behavior']
+  location: LocationTreasure
+}
 
 interface ARLocationProps {
   userPosition: PlayerPosition | null
@@ -47,7 +57,7 @@ export function ARLocation({
   useEffect(() => {
     if (!userPosition) return
 
-    const treasures = TREASURE_MARKERS.filter(marker => {
+    const treasures = TREASURE_MARKERS.filter((marker: TreasureMarker) => {
       // Skip claimed treasures
       if (claimedTreasures.includes(marker.id)) return false
 
@@ -61,11 +71,11 @@ export function ARLocation({
       return distance <= TREASURE_RADIUS
     })
 
-    setNearbyTreasures(treasures.map(t => t.id))
+    setNearbyTreasures(treasures.map((t: TreasureMarker) => t.id))
   }, [userPosition, claimedTreasures])
 
   const handleTreasureInteraction = (markerId: string) => {
-    const marker = TREASURE_MARKERS.find(m => m.id === markerId)
+    const marker = TREASURE_MARKERS.find((m: TreasureMarker) => m.id === markerId)
     if (!marker) return
 
     // Play sound if available
@@ -89,7 +99,7 @@ export function ARLocation({
 
   return (
     <>
-      {TREASURE_MARKERS.map(marker => {
+      {TREASURE_MARKERS.map((marker: TreasureMarker) => {
         if (!nearbyTreasures.includes(marker.id)) return null
 
         return (
@@ -125,7 +135,7 @@ export function ARLocation({
             )}
 
             {/* Reward Indicator */}
-            {activeTreasure === marker.id && (
+            {activeTreasure === marker.id && marker.location.reward && (
               <a-entity
                 position="0 2 0"
                 animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; dur: 1000; loop: true"
