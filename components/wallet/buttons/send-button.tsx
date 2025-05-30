@@ -151,6 +151,9 @@ export function SendButton({ tokenAddress }: SendButtonProps) {
             />
           </div>
         </div>
+        <p className="text-sm text-gray-500">
+          You&apos;re about to send {amount} PATA tokens
+        </p>
         <DialogFooter>
           <Button
             onClick={handleSend}

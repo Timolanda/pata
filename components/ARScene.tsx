@@ -2,7 +2,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import dynamic from 'next/dynamic'
 import type { PlayerPosition, GameState, Treasure } from '@/types/game'
 import { ARMarkers } from './ar/ARMarkers'
 import { ARLocation } from './ar/ARLocation'
@@ -10,6 +9,7 @@ import { useSoundManager } from './SoundManager'
 import { LOCATION_BASED_TREASURES } from './ar/locations/treasureLocations'
 import { ErrorBoundary } from './ErrorBoundary'
 import { ARProvider } from './ARProvider'
+import { CameraToggle } from './ar/CameraToggle'
 import * as THREE from 'three'
 
 // Define the props interface
@@ -49,6 +49,7 @@ export function ARScene({
   const [error, setError] = useState<Error | null>(null)
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'initializing' | 'success' | 'error'>('initializing')
+  const [arMode, setArMode] = useState<'marker' | 'location'>('marker')
   const { playSound } = useSoundManager()
   const gpsRetryCount = useRef(0)
   const MAX_GPS_RETRIES = 3
@@ -59,7 +60,7 @@ export function ARScene({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
-            facingMode: 'environment',
+            facingMode: gameState.cameraFacing,
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           } 
@@ -74,7 +75,7 @@ export function ARScene({
     }
 
     requestCameraPermission()
-  }, [])
+  }, [gameState.cameraFacing])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && cameraPermission) {
@@ -133,6 +134,18 @@ export function ARScene({
     }
   }, [onPositionUpdate, cameraPermission])
 
+  const handleCameraChange = (facingMode: 'user' | 'environment') => {
+    setGameState(prev => ({
+      ...prev,
+      cameraFacing: facingMode
+    }))
+  }
+
+  const toggleARMode = () => {
+    setArMode(prev => prev === 'marker' ? 'location' : 'marker')
+    playSound('switch')
+  }
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-4 bg-red-50">
@@ -185,24 +198,45 @@ export function ARScene({
   return (
     <ARProvider>
       <ErrorBoundary>
-        <a-scene
-          ref={sceneRef}
-          embedded
-          arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-        >
-          <ARMarkers
-            onMarkerFound={onMarkerFound}
-            onMarkerLost={onMarkerLost}
+        <div className="relative w-full h-full">
+          <a-scene
+            ref={sceneRef}
+            embedded
+            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+            renderer="antialias: true; alpha: true; precision: mediump;"
+            vr-mode-ui="enabled: false"
+            ar-cors-hack
+          >
+            {arMode === 'marker' ? (
+              <ARMarkers
+                onMarkerFound={onMarkerFound}
+                onMarkerLost={onMarkerLost}
+              />
+            ) : (
+              <ARLocation
+                userPosition={userPosition}
+                claimedTreasures={claimedTreasures}
+                onTreasureClaimed={onTreasureClaimed}
+              />
+            )}
+
+            <a-entity camera></a-entity>
+          </a-scene>
+          
+          {/* Camera toggle button */}
+          <CameraToggle 
+            onCameraChange={handleCameraChange}
+            initialFacingMode={gameState.cameraFacing}
           />
           
-          <ARLocation
-            userPosition={userPosition}
-            claimedTreasures={claimedTreasures}
-            onTreasureClaimed={onTreasureClaimed}
-          />
-
-          <a-entity camera></a-entity>
-        </a-scene>
+          {/* AR Mode toggle button */}
+          <button
+            onClick={toggleARMode}
+            className="fixed bottom-4 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg"
+          >
+            {arMode === 'marker' ? 'Switch to Location AR' : 'Switch to Marker AR'}
+          </button>
+        </div>
       </ErrorBoundary>
     </ARProvider>
   )

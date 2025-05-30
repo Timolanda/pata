@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react"
+"use client"
+
+import { useEffect, useRef } from "react"
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
@@ -31,64 +33,45 @@ const sampleHeatData: HeatPoint[] = [
 
 // Custom component to add the heatmap layer
 function HeatmapLayer({ points }: { points: HeatPoint[] }) {
-  const map = useMap();
-  const heatLayerRef = useRef<any>(null);
+  const map = useMap()
+  const heatLayerRef = useRef<L.Layer | null>(null)
   
   useEffect(() => {
-    if (!map) return;
+    if (!map) return
     
-    // Dynamically import leaflet-heat
-    import("leaflet.heat").then(() => {
-      // Convert points to the format expected by Leaflet.heat
-      const heatPoints = points.map(p => [p.lat, p.lng, p.intensity * 100]);
-      
-      // Remove existing heatmap layer if it exists
-      if (heatLayerRef.current) {
-        map.removeLayer(heatLayerRef.current);
-      }
-      
-      // Create and add the new heatmap layer
-      // @ts-ignore - Leaflet.heat doesn't have TypeScript definitions
-      heatLayerRef.current = L.heatLayer(heatPoints, {
-        radius: 20,
-        blur: 15,
-        maxZoom: 17,
-        max: 1.0,
-        gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
-      }).addTo(map);
-    });
+    // Convert points to the format expected by Leaflet.heat
+    const heatPoints = points.map(p => [p.lat, p.lng, p.intensity * 100])
+    
+    // Remove existing heatmap layer if it exists
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current)
+    }
+    
+    // Create and add the new heatmap layer
+    // @ts-expect-error - Leaflet.heat doesn't have TypeScript definitions
+    heatLayerRef.current = L.heatLayer(heatPoints, {
+      radius: 20,
+      blur: 15,
+      maxZoom: 17,
+      max: 1.0,
+      gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+    }).addTo(map)
     
     return () => {
       if (heatLayerRef.current) {
-        map.removeLayer(heatLayerRef.current);
+        map.removeLayer(heatLayerRef.current)
       }
-    };
-  }, [map, points]);
+    }
+  }, [map, points])
   
-  return null;
+  return null
 }
 
 export default function TreasureHeatmapInner() {
-  const [mapCenter] = useState<[number, number]>([-1.2921, 36.8219]) // Nairobi center
-  const [zoom] = useState(14)
-  const [points, setPoints] = useState<HeatPoint[]>([])
-
-  useEffect(() => {
-    // In a real app, you would fetch this data from your API
-    // For now, we'll use the sample data
-    const formattedPoints = sampleHeatData.map(point => ({
-      lat: point.lat,
-      lng: point.lng,
-      intensity: point.intensity,
-      count: point.count
-    }))
-    setPoints(formattedPoints)
-  }, [])
-
   return (
     <MapContainer 
-      center={mapCenter} 
-      zoom={zoom} 
+      center={[-1.2921, 36.8219]} // Nairobi center
+      zoom={14} 
       style={{ height: "100%", width: "100%", borderRadius: "0.5rem" }}
       scrollWheelZoom={false}
     >
@@ -98,7 +81,7 @@ export default function TreasureHeatmapInner() {
       />
       
       {/* Custom Heatmap Layer */}
-      <HeatmapLayer points={points} />
+      <HeatmapLayer points={sampleHeatData} />
       
       {/* Markers for specific treasures */}
       {sampleHeatData.map((point, index) => (

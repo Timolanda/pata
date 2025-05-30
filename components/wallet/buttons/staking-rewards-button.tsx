@@ -165,7 +165,10 @@ export function StakingRewardsButton({
                   <Coins className="h-12 w-12 text-indigo-300 mb-3" />
                   <h3 className="font-bold text-indigo-900 mb-2">No Active Staking</h3>
                   <p className="text-indigo-700 text-center mb-4">
-                    You don't have any PATA tokens staked. Start staking to earn rewards.
+                    You&apos;re about to stake {stakedAmount} PATA tokens
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    You&apos;ll earn rewards based on your staked amount
                   </p>
                   <Button className="bg-jungle-600 hover:bg-jungle-700" onClick={() => setOpen(false)}>
                     <TrendingUp className="mr-2 h-4 w-4" />

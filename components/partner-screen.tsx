@@ -201,6 +201,13 @@ export function PartnerScreen() {
                 image="/placeholder.svg?height=80&width=80"
               />
             </div>
+
+            <p className="text-lg text-gray-600 mb-6">
+              Let&apos;s make your location a treasure trove of experiences!
+            </p>
+            <p className="text-sm text-gray-500 italic">
+              &quot;Join us in creating magical moments for explorers&quot; - PATA Team
+            </p>
           </div>
         </>
       )}

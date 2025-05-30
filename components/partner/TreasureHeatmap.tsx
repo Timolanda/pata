@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
-import type { HeatPoint } from "./types"
 import "leaflet/dist/leaflet.css"
 
 // Dynamically import the Map component to avoid SSR issues

@@ -63,7 +63,7 @@ export function ProximityAlert({ treasure, onClose }: ProximityAlertProps) {
 
       <div className="space-y-2">
         <p className="text-gray-700">
-          You're close to <span className="font-medium">{treasure.name}</span>
+          You&apos;re close to <span className="font-medium">{treasure.name}</span>
         </p>
         
         {distance !== null && (
@@ -82,6 +82,10 @@ export function ProximityAlert({ treasure, onClose }: ProximityAlertProps) {
             Head {direction} to find the treasure
           </p>
         )}
+
+        <p className="text-sm text-indigo-700">
+          You&apos;re getting closer to discovering this treasure!
+        </p>
       </div>
     </div>
   )

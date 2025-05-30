@@ -40,32 +40,26 @@ export function SplashScreenWithLogo() {
       >
         Uncover Africa&apos;s Hidden Treasures
       </motion.h2>
-      </motion.div>
       
       <motion.div
-  \
         className="flex space-x-2"
-        initial=
-  opacity: 0
-  animate={{ opacity: 1 }
-}
-transition={{ delay: 1, duration: 0.5 }
-}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1, duration: 0.5 }}
       >
-        <div className="w-3 h-3 bg-amber-200 rounded-full animate-bounce" style=
-{
-  animationDelay: "0ms"
-}
-;/  <>div
-className = "w-3 h-3 bg-amber-200 rounded-full animate-bounce"
-style={{ animationDelay: "150ms" }
-} />
-        <div className="w-3 h-3 bg-amber-200 rounded-full animate-bounce" style=
-{
-  animationDelay: "300ms"
-}
-;/>
-</motion.div>
+        <div 
+          className="w-3 h-3 bg-amber-200 rounded-full animate-bounce" 
+          style={{ animationDelay: "0ms" }}
+        />
+        <div 
+          className="w-3 h-3 bg-amber-200 rounded-full animate-bounce" 
+          style={{ animationDelay: "150ms" }}
+        />
+        <div 
+          className="w-3 h-3 bg-amber-200 rounded-full animate-bounce" 
+          style={{ animationDelay: "300ms" }}
+        />
+      </motion.div>
     </motion.div>
   )
 }

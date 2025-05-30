@@ -1,7 +1,7 @@
 // components/ar/ARMarkers.tsx
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TREASURE_MARKERS } from './markers/arMarkers'
 import { LocationTreasure } from './shared/types'
 
@@ -12,7 +12,6 @@ interface TreasureMarker {
   color: string
   behavior?: LocationTreasure['behavior']
   location: LocationTreasure
-  // Add default values for required properties
   position?: [number, number, number]
   rotation?: [number, number, number]
   scale?: [number, number, number]
@@ -29,6 +28,7 @@ declare global {
       'a-marker': any
       'a-box': any
       'a-entity': any
+      'a-animation': any
     }
   }
 }
@@ -40,20 +40,28 @@ interface ARMarkersProps {
 
 export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
   const markersRef = useRef<{ [key: string]: boolean }>({})
+  const [activeMarkers, setActiveMarkers] = useState<string[]>([])
 
   useEffect(() => {
     const handleMarkerFound = (event: CustomEvent) => {
-      const markerId = event.detail.id
+      const markerId = event.detail.target.id || event.detail.id
       if (!markersRef.current[markerId]) {
         markersRef.current[markerId] = true
+        setActiveMarkers(prev => [...prev, markerId])
         onMarkerFound()
+        
+        // Add haptic feedback if available
+        if (navigator.vibrate) {
+          navigator.vibrate(200)
+        }
       }
     }
 
     const handleMarkerLost = (event: CustomEvent) => {
-      const markerId = event.detail.id
+      const markerId = event.detail.target.id || event.detail.id
       if (markersRef.current[markerId]) {
         markersRef.current[markerId] = false
+        setActiveMarkers(prev => prev.filter(id => id !== markerId))
         onMarkerLost()
       }
     }
@@ -74,6 +82,7 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
     const position = marker.position || [0, 0.5, 0];
     const rotation = marker.rotation || [0, 0, 0];
     const scale = marker.scale || [0.5, 0.5, 0.5];
+    const isActive = activeMarkers.includes(marker.id);
     
     if (marker.model) {
       return (
@@ -82,8 +91,19 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
           position={position.join(' ')}
           rotation={rotation.join(' ')}
           scale={scale.join(' ')}
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;"
-        />
+          className="clickable"
+          animation={isActive ? "property: scale; to: 0.6 0.6 0.6; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate" : ""}
+        >
+          {isActive && (
+            <a-animation
+              attribute="rotation"
+              to="0 360 0"
+              dur="5000"
+              easing="linear"
+              repeat="indefinite"
+            />
+          )}
+        </a-entity>
       )
     }
 
@@ -93,29 +113,34 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
         rotation={rotation.join(' ')}
         scale={scale.join(' ')}
         color={marker.color}
-        class="clickable"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;"
+        className="clickable"
+        animation={isActive ? "property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear" : ""}
       />
     )
   }
 
   return (
     <>
-      {TREASURE_MARKERS.map((marker: TreasureMarker) => (
-        <a-marker
-          key={marker.id}
-          type={marker.type}
-          url={marker.patternUrl}
-          barcodeValue={marker.barcodeValue}
-          matrixCodeType={marker.matrixCodeType}
-          id={marker.id}
-          emitevents="true"
-          raycaster="objects: .clickable"
-          cursor="fuse: false; rayOrigin: mouse;"
-        >
-          {renderTreasure(marker)}
-        </a-marker>
-      ))}
+      {TREASURE_MARKERS.map((marker: TreasureMarker) => {
+        // Determine marker type
+        const markerType = marker.type || (marker.patternUrl ? 'pattern' : marker.barcodeValue !== undefined ? 'barcode' : 'hiro');
+        
+        return (
+          <a-marker
+            key={marker.id}
+            id={marker.id}
+            type={markerType}
+            url={marker.patternUrl}
+            value={marker.barcodeValue}
+            preset={markerType === 'hiro' ? 'hiro' : undefined}
+            emitevents="true"
+            raycaster="objects: .clickable"
+            cursor="fuse: false; rayOrigin: mouse;"
+          >
+            {renderTreasure(marker)}
+          </a-marker>
+        )
+      })}
     </>
   )
 }
