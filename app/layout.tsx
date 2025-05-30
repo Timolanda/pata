@@ -10,7 +10,13 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata = {
   title: "PATA - African AR Treasure Hunt",
   description: "Uncover Africa's Hidden Treasures through an immersive AR experience",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  }
 }
 
 export default function RootLayout({
@@ -21,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <link
           href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
           rel="stylesheet"
@@ -34,14 +41,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Providers>
-          {children}
+            {children}
           </Providers>
         </ThemeProvider>
       </body>
     </html>
   )
 }
-
-
 
 import './globals.css'
