@@ -5,12 +5,12 @@ import dynamic from "next/dynamic"
 import "leaflet/dist/leaflet.css"
 
 // Dynamically import the Map component to avoid SSR issues
-const MapWithNoSSR = dynamic(() => import("./TreasureHeatmapInner"), {
-  ssr: false,
-  loading: () => <div className="h-full w-full bg-indigo-50 rounded-lg flex items-center justify-center">Loading map...</div>
-})
+const TreasureHeatmapInner = dynamic(
+  () => import('./TreasureHeatmapInner').then(mod => mod.default),
+  { ssr: false }
+)
 
-export function TreasureHeatmap() {
+export default function TreasureHeatmap() {
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -21,5 +21,5 @@ export function TreasureHeatmap() {
     return <div className="h-full w-full bg-indigo-50 rounded-lg flex items-center justify-center">Loading map...</div>
   }
 
-  return <MapWithNoSSR />
+  return <TreasureHeatmapInner />
 }

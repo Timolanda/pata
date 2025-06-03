@@ -121,14 +121,14 @@ export function TreasureTracker({
     // Group by collection
     const collections: { [key: string]: any } = {}
     discoveredTreasures.forEach(treasure => {
-      const collection = treasure.location.reward.collection
+      const collection = treasure.location.reward?.collection
       if (collection) {
         if (!collections[collection]) {
           collections[collection] = {
             name: collection,
             progress: 0,
             total: TREASURE_MARKERS.filter(t => 
-              t.location.reward.collection === collection
+              t.location.reward?.collection === collection
             ).length,
             items: []
           }
@@ -146,7 +146,10 @@ export function TreasureTracker({
       legendary: 0
     }
     discoveredTreasures.forEach(treasure => {
-      rarityCounts[treasure.location.reward.rarity as keyof typeof rarityCounts]++
+      const rarity = treasure.location.reward?.rarity
+      if (rarity) {
+        rarityCounts[rarity as keyof typeof rarityCounts]++
+      }
     })
 
     // Get recent discoveries
@@ -155,8 +158,15 @@ export function TreasureTracker({
         id: treasure.id,
         name: treasure.location.name,
         timestamp: new Date(),
-        reward: treasure.location.reward
+        reward: treasure.location.reward ? {
+          type: treasure.location.reward.type,
+          description: treasure.location.reward.description,
+          rarity: String(treasure.location.reward.rarity)
+        } : undefined
       }))
+      .filter((discovery): discovery is { id: string; name: string; timestamp: Date; reward: { type: string; description: string; rarity: string } } => 
+        discovery.reward !== undefined
+      )
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
       .slice(0, 5)
 

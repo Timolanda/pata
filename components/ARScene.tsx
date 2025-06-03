@@ -202,10 +202,24 @@ export function ARScene({
           <a-scene
             ref={sceneRef}
             embedded
-            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-            renderer="antialias: true; alpha: true; precision: mediump;"
+            arjs="sourceType: webcam; 
+                  debugUIEnabled: true; 
+                  detectionMode: mono_and_matrix; 
+                  matrixCodeType: 3x3;
+                  sourceWidth: 1280;
+                  sourceHeight: 720;
+                  displayWidth: 1280;
+                  displayHeight: 720;
+                  maxDetectionRate: 60;
+                  canvasWidth: 1280;
+                  canvasHeight: 720;"
+            renderer="antialias: true; 
+                     alpha: true; 
+                     precision: highp;
+                     logarithmicDepthBuffer: true;"
             vr-mode-ui="enabled: false"
             ar-cors-hack
+            device-orientation-permission-ui="enabled: false"
           >
             {arMode === 'marker' ? (
               <ARMarkers
@@ -220,7 +234,7 @@ export function ARScene({
               />
             )}
 
-            <a-entity camera></a-entity>
+            <a-entity camera look-controls="enabled: false"></a-entity>
           </a-scene>
           
           {/* Camera toggle button */}

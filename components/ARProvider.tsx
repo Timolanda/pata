@@ -20,8 +20,8 @@ export function ARProvider({ children }: ARProviderProps) {
           const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
               facingMode: 'environment',
-              width: { ideal: 1920 },
-              height: { ideal: 1080 }
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
             } 
           });
           stream.getTracks().forEach(track => track.stop());
@@ -62,6 +62,12 @@ export function ARProvider({ children }: ARProviderProps) {
           Your device doesn't support Augmented Reality features. 
           Please ensure you have camera access and WebGL support.
         </p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Retry
+        </button>
         {children}
       </div>
     );
@@ -70,12 +76,12 @@ export function ARProvider({ children }: ARProviderProps) {
   return (
     <>
       <Script
-        src="https://aframe.io/releases/1.4.0/aframe.min.js"
+        src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1.4.0/dist/aframe-master.min.js"
         strategy="beforeInteractive"
         onLoad={() => console.log('A-Frame loaded')}
       />
       <Script
-        src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"
+        src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@master/aframe/build/aframe-ar.js"
         strategy="beforeInteractive"
         onLoad={handleScriptsLoaded}
       />
