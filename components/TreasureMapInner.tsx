@@ -19,13 +19,57 @@ export default function TreasureMapInner({
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<{ [key: string]: L.Marker }>({})
 
-  // Initialize map
+  // Add validation and logging
   useEffect(() => {
-    if (!currentPosition) return
+    console.log('TreasureMapInner props:', { 
+      currentPosition, 
+      treasuresCount: treasures.length,
+      playersCount: players.length 
+    });
+    
+    // Validate currentPosition
+    if (!currentPosition || 
+        typeof currentPosition.latitude !== 'number' || 
+        typeof currentPosition.longitude !== 'number' ||
+        isNaN(currentPosition.latitude) || 
+        isNaN(currentPosition.longitude)) {
+      console.warn('Invalid currentPosition:', currentPosition);
+    }
+    
+    // Validate treasures
+    treasures.forEach((treasure, index) => {
+      if (!treasure.latitude || !treasure.longitude || 
+          isNaN(treasure.latitude) || isNaN(treasure.longitude)) {
+        console.warn(`Invalid coordinates for treasure at index ${index}:`, treasure);
+      }
+    });
+    
+    // Validate players
+    players.forEach((player, index) => {
+      if (!player.position?.latitude || !player.position?.longitude ||
+          isNaN(player.position.latitude) || isNaN(player.position.longitude)) {
+        console.warn(`Invalid coordinates for player at index ${index}:`, player);
+      }
+    });
+  }, [currentPosition, treasures, players]);
+
+  // Initialize map with defensive coding
+  useEffect(() => {
+    // Default position if currentPosition is null or invalid
+    const defaultPosition = { latitude: -1.2921, longitude: 36.8219 }; // Default to Nairobi
+    
+    // Validate currentPosition
+    const position = (currentPosition && 
+                     typeof currentPosition.latitude === 'number' && 
+                     typeof currentPosition.longitude === 'number' &&
+                     !isNaN(currentPosition.latitude) && 
+                     !isNaN(currentPosition.longitude))
+                     ? currentPosition 
+                     : defaultPosition;
 
     // Initialize map
     mapRef.current = L.map('treasure-map').setView(
-      [currentPosition.latitude, currentPosition.longitude],
+      [position.latitude, position.longitude],
       15
     )
 
@@ -66,7 +110,7 @@ export default function TreasureMapInner({
 
     // Add player markers
     players.forEach(player => {
-      if (player.position) {
+      if (player.position?.latitude && player.position?.longitude) {
         const marker = L.marker(
           [player.position.latitude, player.position.longitude],
           { icon: playerIcon }
@@ -91,10 +135,12 @@ export default function TreasureMapInner({
 
     // Update player positions
     players.forEach(player => {
+      if (!player.position?.latitude || !player.position?.longitude) return;
+      
       const markerId = `player-${player.id}`
       const marker = markersRef.current[markerId]
 
-      if (marker && player.position) {
+      if (marker) {
         marker.setLatLng([
           player.position.latitude,
           player.position.longitude
@@ -103,7 +149,7 @@ export default function TreasureMapInner({
     })
 
     // Center map on current position if available
-    if (currentPosition) {
+    if (currentPosition?.latitude && currentPosition?.longitude) {
       mapRef.current.setView(
         [currentPosition.latitude, currentPosition.longitude],
         mapRef.current.getZoom()

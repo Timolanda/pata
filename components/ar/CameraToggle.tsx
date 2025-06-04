@@ -2,59 +2,42 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
-import { Camera, CameraOff } from 'lucide-react'
 
 interface CameraToggleProps {
-  onCameraChange?: (facingMode: 'user' | 'environment') => void
-  initialFacingMode?: 'user' | 'environment'
+  onFacingChange: (facing: 'environment' | 'user') => void
+  currentFacing: 'environment' | 'user'
 }
 
-export function CameraToggle({ 
-  onCameraChange,
-  initialFacingMode = 'environment'
-}: CameraToggleProps) {
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>(initialFacingMode)
-  const [isSupported, setIsSupported] = useState(true)
+export function CameraToggle({ onFacingChange, currentFacing }: CameraToggleProps) {
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
 
   useEffect(() => {
-    // Check if device has multiple cameras
-    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-      navigator.mediaDevices.enumerateDevices()
-        .then(devices => {
-          const hasMultipleCameras = devices.filter(device => device.kind === 'videoinput').length > 1
-          setIsSupported(hasMultipleCameras)
-        })
-        .catch(error => {
-          console.error('Error checking camera support:', error)
-          setIsSupported(false)
-        })
-    } else {
-      setIsSupported(false)
+    const checkCameras = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter(device => device.kind === 'videoinput')
+        setHasMultipleCameras(videoDevices.length > 1)
+      } catch (error) {
+        console.error('Error checking cameras:', error)
+        setHasMultipleCameras(false)
+      }
     }
+
+    checkCameras()
   }, [])
 
-  const toggleCamera = () => {
-    const newFacingMode = facingMode === 'user' ? 'environment' : 'user'
-    setFacingMode(newFacingMode)
-    onCameraChange?.(newFacingMode)
-  }
-
-  if (!isSupported) {
+  if (!hasMultipleCameras) {
     return null
   }
 
   return (
     <Button
+      onClick={() => onFacingChange(currentFacing === 'environment' ? 'user' : 'environment')}
       variant="outline"
-      size="icon"
-      className="fixed top-4 right-4 z-50 bg-white/80 backdrop-blur-sm"
-      onClick={toggleCamera}
+      size="sm"
+      className="px-3 py-1"
     >
-      {facingMode === 'user' ? (
-        <Camera className="h-4 w-4" />
-      ) : (
-        <CameraOff className="h-4 w-4" />
-      )}
+      {currentFacing === 'environment' ? 'Front Camera' : 'Back Camera'}
     </Button>
   )
 } 

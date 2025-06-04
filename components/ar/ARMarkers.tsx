@@ -8,7 +8,7 @@ import { LocationTreasure } from './shared/types'
 // Define TreasureMarker type to match the actual structure in TREASURE_MARKERS
 interface TreasureMarker {
   id: string
-  model: string
+  model?: string  // Make model optional with ?
   color: string
   behavior?: LocationTreasure['behavior']
   location: LocationTreasure
@@ -19,6 +19,11 @@ interface TreasureMarker {
   patternUrl?: string
   barcodeValue?: number
   matrixCodeType?: string
+  name?: string
+  description?: string
+  points?: number
+  hint?: string
+  rarity?: string
 }
 
 // Declare A-Frame elements for TypeScript
@@ -77,7 +82,7 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
     }
   }, [onMarkerFound, onMarkerLost])
 
-  const renderTreasure = (marker: TreasureMarker) => {
+  const renderTreasure = (marker: any) => {
     // Default values for position, rotation, and scale if not provided
     const position = marker.position || [0, 0.5, 0];
     const rotation = marker.rotation || [0, 0, 0];
@@ -107,21 +112,28 @@ export function ARMarkers({ onMarkerFound, onMarkerLost }: ARMarkersProps) {
       )
     }
 
+    // Determine color based on rarity if available
+    const color = marker.color || 
+      (marker.rarity === 'legendary' ? '#FFD700' : 
+       marker.rarity === 'epic' ? '#9932CC' :
+       marker.rarity === 'rare' ? '#1E90FF' : '#32CD32');
+
     return (
       <a-box
         position={position.join(' ')}
         rotation={rotation.join(' ')}
         scale={scale.join(' ')}
-        color={marker.color}
+        color={color}
         className="clickable"
         animation={isActive ? "property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear" : ""}
       />
     )
   }
 
+  // Make sure the marker rendering is correct
   return (
     <>
-      {TREASURE_MARKERS.map((marker: TreasureMarker) => {
+      {TREASURE_MARKERS.map((marker: any) => {
         // Determine marker type
         const markerType = marker.type || (marker.patternUrl ? 'pattern' : marker.barcodeValue !== undefined ? 'barcode' : 'hiro');
         

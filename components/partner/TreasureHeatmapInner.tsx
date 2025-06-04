@@ -1,26 +1,10 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import "leaflet.heat"
-import { LOCATION_BASED_TREASURES } from '../ar/locations/treasureLocations'
-import type { LocationTreasure } from '../ar/shared/types'
-
-// Define heat layer types
-interface HeatLayerOptions {
-  minOpacity?: number;
-  maxZoom?: number;
-  max?: number;
-  radius?: number;
-  blur?: number;
-  gradient?: { [key: number]: string };
-}
-
-// Extend Leaflet types
-declare module 'leaflet' {
-  function heatLayer(latlngs: [number, number, number][], options?: HeatLayerOptions): any;
-}
+import type { HeatPoint } from "./types"
 
 // Fix for default marker icons in Leaflet with Next.js
 L.Icon.Default.mergeOptions({
@@ -36,95 +20,104 @@ const DefaultIcon = L.icon({
   popupAnchor: [0, -24]
 })
 
+// Sample data - in a real app, this would come from your API
+const sampleHeatData: HeatPoint[] = [
+  { lat: -1.2921, lng: 36.8219, intensity: 0.8, count: 124 }, // Traditional Mask
+  { lat: -1.2935, lng: 36.8230, intensity: 0.6, count: 256 }, // Ancient Drum
+  { lat: -1.2910, lng: 36.8200, intensity: 0.5, count: 98 },  // Tribal Necklace
+  { lat: -1.2950, lng: 36.8240, intensity: 0.9, count: 42 },  // Golden Statue
+  { lat: -1.2900, lng: 36.8190, intensity: 0.3, count: 78 },  // Additional point
+  { lat: -1.2940, lng: 36.8210, intensity: 0.4, count: 65 },  // Additional point
+  { lat: -1.2915, lng: 36.8225, intensity: 0.7, count: 112 }, // Additional point
+]
+
+// Custom component to add the heatmap layer
+function HeatmapLayer({ points }: { points: HeatPoint[] }) {
+  const map = useMap();
+  const heatLayerRef = useRef<any>(null);
+  
+  useEffect(() => {
+    if (!map) return;
+    
+    // Dynamically import leaflet-heat
+    import("leaflet.heat").then(() => {
+      // Convert points to the format expected by Leaflet.heat
+      const heatPoints = points.map(p => [p.lat, p.lng, p.intensity * 100]);
+      
+      // Remove existing heatmap layer if it exists
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+      }
+      
+      // Create and add the new heatmap layer
+      // @ts-ignore - Leaflet.heat doesn't have TypeScript definitions
+      heatLayerRef.current = L.heatLayer(heatPoints, {
+        radius: 20,
+        blur: 15,
+        maxZoom: 17,
+        max: 1.0,
+        gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+      }).addTo(map);
+    });
+    
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+      }
+    };
+  }, [map, points]);
+  
+  return null;
+}
+
 export default function TreasureHeatmapInner() {
-  const mapRef = useRef<L.Map | null>(null)
-  const heatLayerRef = useRef<any>(null)
-  const mapContainerRef = useRef<HTMLDivElement>(null)
+  // Default to Nairobi center coordinates
+  const [mapCenter] = useState<[number, number]>([-1.2921, 36.8219])
+  const [zoom] = useState(14)
+  const [points, setPoints] = useState<HeatPoint[]>([])
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return
-
-    // Initialize the map
-    const map = L.map(mapContainerRef.current).setView([0, 0], 2)
-    mapRef.current = map
-
-    // Add the tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map)
-
-    // Convert treasure locations to heat points
-    const heatPoints: [number, number, number][] = LOCATION_BASED_TREASURES
-      .filter(treasure => treasure.reward) // Filter out treasures without rewards
-      .map(treasure => [
-        treasure.latitude,
-        treasure.longitude,
-        getIntensityFromRarity(treasure.reward!.rarity)
-      ] as [number, number, number])
-
-    // Create and add the new heatmap layer
-    heatLayerRef.current = L.heatLayer(heatPoints, {
-      radius: 20,
-      blur: 15,
-      maxZoom: 17,
-      max: 1.0,
-      gradient: {
-        0.4: 'blue',
-        0.6: 'lime',
-        0.8: 'yellow',
-        1.0: 'red'
-      }
-    }).addTo(map)
-
-    // Fit map to show all points
-    const bounds = L.latLngBounds(heatPoints.map(point => [point[0], point[1]]))
-    map.fitBounds(bounds)
-
-    // Add markers for each treasure
-    LOCATION_BASED_TREASURES
-      .filter(treasure => treasure.reward) // Filter out treasures without rewards
-      .forEach(treasure => {
-        const marker = L.marker([treasure.latitude, treasure.longitude], { icon: DefaultIcon })
-          .bindPopup(`
-            <div class="p-2">
-              <h3 class="font-bold">${treasure.name}</h3>
-              <p>${treasure.description}</p>
-              <p class="mt-1">Rarity: ${treasure.reward!.rarity}</p>
-              <p>Points: ${treasure.reward!.value}</p>
-            </div>
-          `)
-        marker.addTo(map)
-      })
-
-    return () => {
-      map.remove()
-      mapRef.current = null
-      heatLayerRef.current = null
-    }
+    // In a real app, you would fetch this data from your API
+    // For now, we'll use the sample data
+    const formattedPoints = sampleHeatData.map(point => ({
+      lat: point.lat,
+      lng: point.lng,
+      intensity: point.intensity,
+      count: point.count
+    }))
+    setPoints(formattedPoints)
   }, [])
 
   return (
-    <div 
-      ref={mapContainerRef} 
-      className="w-full h-[400px] rounded-lg shadow-lg relative z-0"
-    />
+    <MapContainer 
+      center={mapCenter} 
+      zoom={zoom} 
+      style={{ height: "100%", width: "100%", borderRadius: "0.5rem" }}
+      scrollWheelZoom={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      
+      {/* Custom Heatmap Layer */}
+      <HeatmapLayer points={points} />
+      
+      {/* Markers for specific treasures */}
+      {sampleHeatData.map((point, index) => (
+        <Marker
+          key={index}
+          position={[point.lat, point.lng]}
+          icon={DefaultIcon}
+        >
+          <Popup>
+            <div className="p-2">
+              <h3 className="font-bold text-indigo-900">Treasure Location</h3>
+              <p className="text-sm text-indigo-700">Discoveries: {point.count}</p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
   )
-}
-
-// Helper function to convert rarity to intensity
-function getIntensityFromRarity(rarity: string): number {
-  switch (rarity.toLowerCase()) {
-    case 'common':
-      return 0.3
-    case 'uncommon':
-      return 0.5
-    case 'rare':
-      return 0.7
-    case 'epic':
-      return 0.85
-    case 'legendary':
-      return 1.0
-    default:
-      return 0.5
-  }
 }

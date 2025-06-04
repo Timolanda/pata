@@ -10,25 +10,32 @@ import { LocationTreasure } from './shared/types'
 // Define a type for the treasure markers
 interface TreasureMarker {
   id: string
-  model: string
+  model?: string
   color?: string
   behavior?: LocationTreasure['behavior']
-  location: LocationTreasure
+  location: LocationTreasure['location']
 }
 
 interface ARLocationProps {
-  userPosition: PlayerPosition | null
+  playerPosition: { lat: number; lng: number } | null  // Changed from userPosition to playerPosition
   claimedTreasures: string[]
   onTreasureClaimed: (treasureId: string) => void
+  treasures: LocationTreasure[]
 }
 
 // Calculate distance between two points using Haversine formula
 function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
+  lat1: number | undefined | null,
+  lon1: number | undefined | null,
+  lat2: number | undefined | null,
+  lon2: number | undefined | null
 ): number {
+  // Return Infinity if any coordinate is missing or invalid
+  if (!lat1 || !lon1 || !lat2 || !lon2 || 
+      isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) {
+    return Infinity;
+  }
+  
   const R = 6371e3 // Earth's radius in meters
   const φ1 = (lat1 * Math.PI) / 180
   const φ2 = (lat2 * Math.PI) / 180
@@ -39,123 +46,155 @@ function calculateDistance(
     Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
     Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  const d = R * c
 
-  return R * c // Distance in meters
+  return d // Distance in meters
+}
+
+function isValidCoordinate(lat?: number | null, lng?: number | null): boolean {
+  return (
+    typeof lat === 'number' && 
+    typeof lng === 'number' && 
+    !isNaN(lat) && 
+    !isNaN(lng) && 
+    lat >= -90 && 
+    lat <= 90 && 
+    lng >= -180 && 
+    lng <= 180
+  );
 }
 
 export function ARLocation({
-  userPosition,
+  playerPosition,  // Changed from userPosition to playerPosition
   claimedTreasures,
-  onTreasureClaimed
+  onTreasureClaimed,
+  treasures
 }: ARLocationProps) {
-  const [nearbyTreasures, setNearbyTreasures] = useState<string[]>([])
-  const [showHints, setShowHints] = useState<{ [key: string]: boolean }>({})
-  const [activeTreasure, setActiveTreasure] = useState<string | null>(null)
+  const [nearbyTreasures, setNearbyTreasures] = useState<LocationTreasure[]>([])
   const { playSound } = useSoundManager()
-  const TREASURE_RADIUS = 50 // meters
+  const treasureCheckInterval = useRef<NodeJS.Timeout | null>(null)
+  const MAX_DISTANCE = 100 // Maximum distance in meters to show treasures
 
   useEffect(() => {
-    if (!userPosition) return
+    // Ensure location-based AR is working correctly
+    const checkNearbyTreasures = () => {
+      // Ensure player position is valid
+      if (!isValidCoordinate(playerPosition?.lat, playerPosition?.lng)) {
+        console.log("Invalid player position:", playerPosition);
+        setNearbyTreasures([]);
+        return;
+      }
+      
+      const nearby = treasures.filter(treasure => {
+        // Skip already claimed treasures
+        if (claimedTreasures.includes(treasure.id)) return false
+        
+        // Skip treasures with invalid coordinates
+        if (!isValidCoordinate(treasure.location?.lat, treasure.location?.lng)) {
+          console.log("Invalid treasure location:", treasure.location);
+          return false;
+        }
 
-    const treasures = TREASURE_MARKERS.filter((marker: TreasureMarker) => {
-      // Skip claimed treasures
-      if (claimedTreasures.includes(marker.id)) return false
+        // Calculate distance to treasure
+        const distance = calculateDistance(
+          playerPosition!.lat,
+          playerPosition!.lng,
+          treasure.location.lat,
+          treasure.location.lng
+        )
 
-      const distance = calculateDistance(
-        userPosition.latitude,
-        userPosition.longitude,
-        marker.location.latitude,
-        marker.location.longitude
-      )
+        console.log(`Distance to treasure ${treasure.id}: ${distance}m`);
+        return distance <= MAX_DISTANCE
+      })
 
-      return distance <= TREASURE_RADIUS
-    })
-
-    setNearbyTreasures(treasures.map((t: TreasureMarker) => t.id))
-  }, [userPosition, claimedTreasures])
-
-  const handleTreasureInteraction = (markerId: string) => {
-    const marker = TREASURE_MARKERS.find((m: TreasureMarker) => m.id === markerId)
-    if (!marker) return
-
-    // Play sound if available
-    if (marker.behavior?.sound) {
-      playSound(marker.behavior.sound)
+      console.log(`Found ${nearby.length} nearby treasures`);
+      setNearbyTreasures(nearby)
     }
 
-    // Show hint
-    setShowHints(prev => ({ ...prev, [markerId]: true }))
+    // Check immediately and then set interval
+    checkNearbyTreasures()
+    treasureCheckInterval.current = setInterval(checkNearbyTreasures, 5000)
 
-    // Set as active treasure
-    setActiveTreasure(markerId)
+    return () => {
+      if (treasureCheckInterval.current) {
+        clearInterval(treasureCheckInterval.current)
+      }
+    }
+  }, [playerPosition, claimedTreasures, treasures])
 
-    // Claim treasure after interaction
-    onTreasureClaimed(markerId)
+  const handleTreasureFound = (treasureId: string) => {
+    playSound('treasure')
+    onTreasureClaimed(treasureId)
+    
+    // Add haptic feedback if available
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 200])
+    }
   }
 
-  if (!userPosition) {
-    return null
+  if (!playerPosition?.lat || !playerPosition?.lng) {
+    return (
+      <a-entity position="0 0 -5">
+        <a-box color="red" position="0 1.5 0" scale="0.5 0.5 0.5">
+          <a-animation
+            attribute="rotation"
+            to="0 360 0"
+            dur="5000"
+            easing="linear"
+            repeat="indefinite"
+          />
+        </a-box>
+        <a-text
+          value="Waiting for GPS signal..."
+          position="0 0.7 0"
+          align="center"
+          color="white"
+          scale="0.5 0.5 0.5"
+        />
+      </a-entity>
+    )
   }
 
+  // Calculate relative position with proper validation
   return (
     <>
-      {TREASURE_MARKERS.map((marker: TreasureMarker) => {
-        if (!nearbyTreasures.includes(marker.id)) return null
-
+      {nearbyTreasures.map(treasure => {
+        // Ensure all coordinates are valid numbers before proceeding
+        if (!playerPosition?.lat || !playerPosition?.lng || 
+            !treasure.location?.lat || !treasure.location?.lng ||
+            isNaN(playerPosition.lat) || isNaN(playerPosition.lng) ||
+            isNaN(treasure.location.lat) || isNaN(treasure.location.lng)) {
+          return null;
+        }
+        
+        // Calculate relative position (simplified for demo)
+        const latDiff = (treasure.location.lat - playerPosition.lat) * 111000 // ~111km per degree of latitude
+        const lngDiff = (treasure.location.lng - playerPosition.lng) * 111000 * Math.cos(playerPosition.lat * (Math.PI / 180))
+        
+        // Scale down for AR view (1m in real world = 0.1 units in AR)
+        const scale = 0.1
+        const x = lngDiff * scale
+        const z = -latDiff * scale // Negative because forward in AR is negative z
+        
         return (
-          <a-entity
-            key={marker.id}
-            id={`location-${marker.id}`}
-            position="0 0 -1"
-            rotation="0 0 0"
-            scale="1 1 1"
-            gltf-model={marker.model}
-            animation={marker.behavior?.animation}
-            onClick={() => handleTreasureInteraction(marker.id)}
-            class={`treasure ${marker.behavior?.interaction || 'clickable'}`}
-          >
-            {/* Treasure Name */}
-            <a-text
-              value={marker.location.name}
+          <a-entity key={treasure.id} position={`${x} 0 ${z}`}>
+            <a-box
+              color={treasure.rarity === 'legendary' ? '#FFD700' : 
+                    treasure.rarity === 'epic' ? '#9932CC' :
+                    treasure.rarity === 'rare' ? '#1E90FF' : '#32CD32'}
               position="0 1 0"
-              align="center"
-              color="#FFFFFF"
-              scale="1 1 1"
+              scale="0.5 0.5 0.5"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear"
+              className="clickable"
+              event-set__click={`_event: click; _callback: ${() => handleTreasureFound(treasure.id)}`}
             />
-
-            {/* Hint Text (shown when treasure is active) */}
-            {showHints[marker.id] && (
-              <a-text
-                value={marker.location.hint}
-                position="0 1.5 0"
-                align="center"
-                color="#FFD700"
-                scale="0.8 0.8 0.8"
-              />
-            )}
-
-            {/* Reward Indicator */}
-            {activeTreasure === marker.id && marker.location.reward && (
-              <a-entity
-                position="0 2 0"
-                animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; dur: 1000; loop: true"
-              >
-                <a-text
-                  value={`Reward: ${marker.location.reward.description}`}
-                  align="center"
-                  color="#00FF00"
-                  scale="0.7 0.7 0.7"
-                />
-              </a-entity>
-            )}
-
-            {/* Particle Effects */}
-            {marker.behavior?.particleEffect && (
-              <a-entity
-                particle-system={`preset: ${marker.behavior.particleEffect}; color: ${marker.color}`}
-                position="0 0 0"
-              />
-            )}
+            <a-text
+              value={treasure.location.name || 'Treasure'}
+              position="0 1.8 0"
+              align="center"
+              color="white"
+              scale="0.5 0.5 0.5"
+            />
           </a-entity>
         )
       })}

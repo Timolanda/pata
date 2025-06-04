@@ -15,64 +15,62 @@ export const LOCATION_BASED_TREASURES: LocationTreasure[] = [
   {
     id: 'treasure-1',
     name: 'Nairobi National Museum Treasure',
-    model: '/models/african_mask.glb',
-    points: 150,
-    latitude: -1.2701,
-    longitude: 36.8121,
-    hint: 'Look for the grand entrance with stone pillars',
-    type: TREASURE_TYPES.MASK,
-    rarity: 'common',
     description: 'Ancient African mask treasure near the museum entrance',
-    reward: {
-      type: 'token',
-      value: 100,
-      description: 'Museum Explorer Token',
-      rarity: 'common',
-      collection: 'cultural_heritage'
+    points: 150,
+    hint: 'Look for the grand entrance with stone pillars',
+    rarity: 'common',
+    model: '/models/african_mask.glb', // Add model path
+    location: {
+      lat: -1.2701,
+      lng: 36.8121,
+      name: 'Nairobi National Museum',
+      reward: {
+        type: 'token',
+        value: 100,
+        description: 'Museum Explorer Token',
+        rarity: 'common',
+        collection: 'cultural_heritage'
+      }
     },
     behavior: {
       animation: 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;',
       interaction: 'hover',
       sound: '/sounds/museum-ambience.mp3',
       particleEffect: 'gold-sparkles',
-      timeOfDay: 'day',
-      weatherCondition: 'any'
+      timeOfDay: 'day'
     }
   },
   {
     id: 'treasure-2',
     name: 'Uhuru Park Treasure',
-    model: '/models/ancient_rolled_document.glb',
-    points: 100,
-    latitude: -1.2833,
-    longitude: 36.8167,
-    hint: 'Find the fountain with the tallest water jet',
-    type: TREASURE_TYPES.SCROLL,
-    rarity: 'common',
     description: 'Ancient scroll hidden near the central fountain',
-    reward: {
-      type: 'badge',
-      value: 1,
-      description: 'Park Explorer Badge',
-      rarity: 'common',
-      collection: 'park_explorer'
+    points: 100,
+    hint: 'Find the fountain with the tallest water jet',
+    rarity: 'common',
+    model: '/models/ancient_scroll.glb', // Add model path
+    location: {
+      lat: -1.2833,
+      lng: 36.8167,
+      name: 'Uhuru Park',
+      reward: {
+        type: 'badge',
+        value: 1,
+        description: 'Park Explorer Badge',
+        rarity: 'common',
+        collection: 'park_explorer'
+      }
     },
     behavior: {
       animation: 'property: position; to: 0 1.2 0; dir: alternate; dur: 2000; loop: true',
       interaction: 'click',
       sound: '/sounds/water-flowing.mp3',
       particleEffect: 'water-splash',
-      timeOfDay: 'any',
-      weatherCondition: 'any'
+      timeOfDay: 'any'
     }
   }
 ]
 
 // Helper functions for treasure management
-export const getTreasuresByType = (type: TreasureType) => {
-  return LOCATION_BASED_TREASURES.filter(treasure => treasure.type === type)
-}
-
 export const getTreasuresByRarity = (rarity: LocationTreasure['rarity']) => {
   return LOCATION_BASED_TREASURES.filter(treasure => treasure.rarity === rarity)
 }
@@ -82,8 +80,8 @@ export const getNearbyTreasures = (latitude: number, longitude: number, radius: 
     const distance = calculateDistance(
       latitude,
       longitude,
-      treasure.latitude,
-      treasure.longitude
+      treasure.location.lat,
+      treasure.location.lng
     )
     return distance <= radius
   })

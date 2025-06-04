@@ -1,7 +1,7 @@
 // components/ARScene.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type { PlayerPosition, GameState, Treasure } from '@/types/game'
 import { ARMarkers } from './ar/ARMarkers'
 import { ARLocation } from './ar/ARLocation'
@@ -11,15 +11,20 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { ARProvider } from './ARProvider'
 import { CameraToggle } from './ar/CameraToggle'
 import * as THREE from 'three'
+import { useAR } from '@/hooks/use-ar'
+import { useGPS } from '@/hooks/use-gps'
+import { LocationTreasure } from './ar/shared/types'
+import { Button } from '@/components/ui/button'
+import { TreasureTracker } from './ar/TreasureTracker'
 
 // Define the props interface
 export interface ARSceneProps {
-  onMarkerFound: () => void
-  onMarkerLost: () => void
-  treasures: Treasure[]
-  onTreasureClaimed: (treasureId: string) => void
-  claimedTreasures: string[]
-  onPositionUpdate: (position: PlayerPosition) => void
+  onMarkerFound?: (markerId: string) => void
+  onMarkerLost?: (markerId: string) => void
+  treasures?: LocationTreasure[]
+  onTreasureClaimed?: (treasureId: string) => void
+  claimedTreasures?: string[]
+  onPositionUpdate?: (position: PlayerPosition) => void
 }
 
 interface SceneRef {
@@ -29,167 +34,133 @@ interface SceneRef {
 }
 
 // Export the component with the props interface
-export function ARScene({ 
-  onMarkerFound, 
-  onMarkerLost, 
-  treasures,
-  onTreasureClaimed,
-  claimedTreasures,
-  onPositionUpdate 
-}: ARSceneProps) {
-  const sceneRef = useRef<SceneRef | null>(null)
-  const [gameState, setGameState] = useState<GameState>({
-    players: [],
-    treasures: treasures,
-    soundEnabled: true,
-    cameraFacing: 'environment',
-    showMap: false
-  })
-  const [userPosition, setUserPosition] = useState<PlayerPosition | null>(null)
-  const [error, setError] = useState<Error | null>(null)
-  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null)
-  const [gpsStatus, setGpsStatus] = useState<'initializing' | 'success' | 'error'>('initializing')
-  const [arMode, setArMode] = useState<'marker' | 'location'>('marker')
+export function ARScene({ onMarkerFound, onMarkerLost, treasures = [], onTreasureClaimed, claimedTreasures = [], onPositionUpdate }: ARSceneProps) {
+  const [hasCameraPermission, setHasCameraPermission] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [arMode, setARMode] = useState<'marker' | 'location'>('marker')
+  const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment')
+  const { isARSupported, isLoading: isARLoading } = useAR()
+  const { position: playerPosition, error: gpsError, isInitializing: isGPSInitializing, initializeGPS } = useGPS()
+  const sceneRef = useRef<HTMLElement>(null)
   const { playSound } = useSoundManager()
-  const gpsRetryCount = useRef(0)
-  const MAX_GPS_RETRIES = 3
 
+  // Request camera permissions
   useEffect(() => {
-    // Request camera permission
     const requestCameraPermission = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: gameState.cameraFacing,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          } 
-        })
-        stream.getTracks().forEach(track => track.stop())
-        setCameraPermission(true)
-      } catch (err) {
-        console.error('Camera permission error:', err)
-        setCameraPermission(false)
-        setError(new Error('Camera access is required for AR features'))
+        const constraints = {
+          video: {
+            facingMode: cameraFacing,
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 }
+          }
+        }
+
+        // First try with ideal constraints
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(constraints)
+          stream.getTracks().forEach(track => track.stop())
+          setHasCameraPermission(true)
+          setCameraError(null)
+        } catch (error) {
+          // If ideal constraints fail, try with minimal constraints
+          const fallbackConstraints = {
+            video: {
+              facingMode: cameraFacing
+            }
+          }
+          const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints)
+          stream.getTracks().forEach(track => track.stop())
+          setHasCameraPermission(true)
+          setCameraError(null)
+        }
+      } catch (error) {
+        console.error('Camera permission error:', error)
+        setCameraError('Camera access is required for AR features')
+        setHasCameraPermission(false)
       }
     }
 
     requestCameraPermission()
-  }, [gameState.cameraFacing])
+  }, [cameraFacing])
 
+  // Initialize GPS when in location mode
   useEffect(() => {
-    if (typeof window !== 'undefined' && cameraPermission) {
-      let watchId: number | null = null;
-      
-      const startGPS = () => {
-        try {
-          watchId = navigator.geolocation.watchPosition(
-            (position) => {
-              const newPosition = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                timestamp: position.timestamp
-              }
-              setUserPosition(newPosition)
-              onPositionUpdate(newPosition)
-              setGpsStatus('success')
-              gpsRetryCount.current = 0 // Reset retry count on success
-            },
-            (error) => {
-              console.error('GPS Error:', error)
-              gpsRetryCount.current += 1
-              
-              if (gpsRetryCount.current >= MAX_GPS_RETRIES) {
-                setGpsStatus('error')
-                setError(new Error(`GPS Error: ${error.message}. Please ensure location services are enabled and try again.`))
-              } else {
-                // Retry with different settings
-                setTimeout(() => {
-                  if (watchId !== null) {
-                    navigator.geolocation.clearWatch(watchId)
-                  }
-                  startGPS()
-                }, 1000)
-              }
-            },
-            { 
-              enableHighAccuracy: true,
-              timeout: 10000, // Increased timeout
-              maximumAge: 5000 // Allow slightly older positions
-            }
-          )
-        } catch (err) {
-          setGpsStatus('error')
-          setError(err instanceof Error ? err : new Error('Failed to initialize GPS'))
-        }
-      }
-
-      startGPS()
-
-      return () => {
-        if (watchId !== null) {
-          navigator.geolocation.clearWatch(watchId)
-        }
-      }
+    if (arMode === 'location') {
+      initializeGPS()
     }
-  }, [onPositionUpdate, cameraPermission])
+  }, [arMode, initializeGPS])
 
-  const handleCameraChange = (facingMode: 'user' | 'environment') => {
-    setGameState(prev => ({
-      ...prev,
-      cameraFacing: facingMode
-    }))
-  }
+  // Notify parent component of position updates
+  useEffect(() => {
+    if (playerPosition?.lat && playerPosition?.lng) {
+      onPositionUpdate?.({
+        latitude: playerPosition.lat,
+        longitude: playerPosition.lng,
+        timestamp: playerPosition.timestamp
+      })
+    }
+  }, [playerPosition, onPositionUpdate])
 
-  const toggleARMode = () => {
-    setArMode(prev => prev === 'marker' ? 'location' : 'marker')
+  const handleARModeChange = useCallback((mode: 'marker' | 'location') => {
+    console.log(`Switching AR mode to: ${mode}`);
+    setARMode(mode)
+    if (mode === 'location') {
+      console.log('Initializing GPS for location-based AR');
+      initializeGPS()
+    }
     playSound('switch')
-  }
+  }, [initializeGPS, playSound])
 
-  if (error) {
+  const handleCameraFacingChange = useCallback((facing: 'environment' | 'user') => {
+    setCameraFacing(facing)
+    setHasCameraPermission(false) // Reset permission state to trigger new request
+  }, [])
+
+  if (isARLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-4 bg-red-50">
-        <div className="p-6 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-bold text-red-600 mb-2">AR Scene Error</h2>
-          <p className="text-gray-600">{error.message}</p>
-          <button 
-            onClick={() => {
-              setError(null)
-              gpsRetryCount.current = 0
-              setGpsStatus('initializing')
-            }}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Retry
-          </button>
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="text-white text-center">
+          <p className="text-xl mb-2">Loading AR...</p>
+          <p className="text-sm">Please wait while we initialize the AR experience</p>
         </div>
       </div>
     )
   }
 
-  if (cameraPermission === false) {
+  if (!isARSupported) {
     return (
-      <div className="flex flex-col items-center justify-center p-4 bg-yellow-50">
-        <div className="p-6 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-bold text-yellow-600 mb-2">Camera Access Required</h2>
-          <p className="text-gray-600">Please enable camera access to use AR features.</p>
-          <button 
-            onClick={() => setCameraPermission(null)}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="text-white text-center p-6 bg-gray-800 rounded-lg max-w-md">
+          <h2 className="text-2xl font-bold mb-4">AR Not Supported</h2>
+          <p className="mb-4">
+            Your device doesn't support AR features. Please try using a different device or browser.
+          </p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
           >
-            Retry Camera Access
-          </button>
+            Try Again
+          </Button>
         </div>
       </div>
     )
   }
 
-  if (gpsStatus === 'initializing') {
+  if (!hasCameraPermission) {
     return (
-      <div className="flex flex-col items-center justify-center p-4 bg-blue-50">
-        <div className="p-6 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-bold text-blue-600 mb-2">Initializing GPS</h2>
-          <p className="text-gray-600">Please ensure location services are enabled and wait a moment...</p>
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="text-white text-center p-6 bg-gray-800 rounded-lg max-w-md">
+          <h2 className="text-2xl font-bold mb-4">Camera Access Required</h2>
+          <p className="mb-4">
+            {cameraError || 'Please allow camera access to use AR features.'}
+          </p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            Grant Permission
+          </Button>
         </div>
       </div>
     )
@@ -209,10 +180,7 @@ export function ARScene({
                   sourceWidth: 1280;
                   sourceHeight: 720;
                   displayWidth: 1280;
-                  displayHeight: 720;
-                  maxDetectionRate: 60;
-                  canvasWidth: 1280;
-                  canvasHeight: 720;"
+                  displayHeight: 720;"
             renderer="antialias: true; 
                      alpha: true; 
                      precision: highp;
@@ -221,35 +189,103 @@ export function ARScene({
             ar-cors-hack
             device-orientation-permission-ui="enabled: false"
           >
+            <div className="absolute top-4 left-4 z-10 flex space-x-2">
+              <Button
+                onClick={() => handleARModeChange('marker')}
+                className={`px-4 py-2 rounded ${
+                  arMode === 'marker'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                Marker Mode
+              </Button>
+              <Button
+                onClick={() => handleARModeChange('location')}
+                className={`px-4 py-2 rounded ${
+                  arMode === 'location'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                Location Mode
+              </Button>
+            </div>
+
+            <CameraToggle
+              onFacingChange={handleCameraFacingChange}
+              currentFacing={cameraFacing}
+            />
+
             {arMode === 'marker' ? (
-              <ARMarkers
-                onMarkerFound={onMarkerFound}
-                onMarkerLost={onMarkerLost}
-              />
+              <>
+                <div className="absolute top-16 left-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded">
+                  Marker Mode: Point camera at markers
+                </div>
+                <ARMarkers
+                  onMarkerFound={() => {
+                    console.log('Marker found!');
+                    onMarkerFound?.('marker');
+                  }}
+                  onMarkerLost={() => {
+                    console.log('Marker lost!');
+                    onMarkerLost?.('marker');
+                  }}
+                />
+              </>
             ) : (
-              <ARLocation
-                userPosition={userPosition}
-                claimedTreasures={claimedTreasures}
-                onTreasureClaimed={onTreasureClaimed}
-              />
+              <>
+                {isGPSInitializing ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="text-white text-center p-6 bg-gray-800 rounded-lg max-w-md w-full">
+                      <h2 className="text-2xl font-bold mb-4">Initializing GPS</h2>
+                      <p className="mb-4">Please wait while we initialize location services...</p>
+                    </div>
+                  </div>
+                ) : playerPosition?.lat && playerPosition?.lng ? (
+                  <>
+                    <div className="absolute top-16 left-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded">
+                      Location Mode: GPS Active
+                    </div>
+                    <ARLocation
+                      treasures={treasures}
+                      playerPosition={playerPosition}
+                      claimedTreasures={claimedTreasures || []}
+                      onTreasureClaimed={(id) => {
+                        console.log(`Treasure claimed: ${id}`);
+                        onTreasureClaimed?.(id);
+                      }}
+                    />
+                    <TreasureTracker
+                      treasures={treasures}
+                      playerPosition={playerPosition}
+                      gpsError={gpsError}
+                    />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="text-white text-center p-6 bg-gray-800 rounded-lg max-w-md w-full">
+                      <h2 className="text-2xl font-bold mb-4">GPS Required</h2>
+                      <p className="mb-4">
+                        {gpsError || 'Please allow location access to use location-based AR features.'}
+                      </p>
+                      <Button
+                        onClick={() => {
+                          console.log('Retrying GPS initialization');
+                          initializeGPS();
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                      >
+                        Retry GPS
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <a-entity camera look-controls="enabled: false"></a-entity>
           </a-scene>
-          
-          {/* Camera toggle button */}
-          <CameraToggle 
-            onCameraChange={handleCameraChange}
-            initialFacingMode={gameState.cameraFacing}
-          />
-          
-          {/* AR Mode toggle button */}
-          <button
-            onClick={toggleARMode}
-            className="fixed bottom-4 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg"
-          >
-            {arMode === 'marker' ? 'Switch to Location AR' : 'Switch to Marker AR'}
-          </button>
         </div>
       </ErrorBoundary>
     </ARProvider>

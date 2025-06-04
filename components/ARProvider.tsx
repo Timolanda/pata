@@ -9,6 +9,7 @@ interface ARProviderProps {
 export function ARProvider({ children }: ARProviderProps) {
   const [arSupported, setARSupported] = useState<boolean | null>(null);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [scriptError, setScriptError] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -54,6 +55,11 @@ export function ARProvider({ children }: ARProviderProps) {
     console.log('AR scripts loaded successfully');
   };
 
+  const handleScriptError = (error: any) => {
+    console.error('Error loading AR scripts:', error);
+    setScriptError('Failed to load AR scripts. Please try refreshing the page.');
+  };
+
   if (arSupported === false) {
     return (
       <div className="p-4 bg-red-50 rounded-lg">
@@ -73,17 +79,34 @@ export function ARProvider({ children }: ARProviderProps) {
     );
   }
 
+  if (scriptError) {
+    return (
+      <div className="p-4 bg-red-50 rounded-lg">
+        <h3 className="text-lg font-bold text-red-700">AR Script Error</h3>
+        <p className="text-red-600">{scriptError}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <Script
-        src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1.4.0/dist/aframe-master.min.js"
+        src="https://aframe.io/releases/1.4.0/aframe.min.js"
         strategy="beforeInteractive"
         onLoad={() => console.log('A-Frame loaded')}
+        onError={handleScriptError}
       />
       <Script
         src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@master/aframe/build/aframe-ar.js"
         strategy="beforeInteractive"
         onLoad={handleScriptsLoaded}
+        onError={handleScriptError}
       />
       
       {/* Add CORS headers for AR.js */}

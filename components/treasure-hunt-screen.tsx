@@ -12,6 +12,7 @@ import { ProximityNotification } from '@/components/proximity-notification'
 import type { Treasure, PlayerPosition } from '@/types/game'
 import { LOCATION_BASED_TREASURES } from './ar/locations/treasureLocations'
 import type { ARSceneProps } from '@/components/ARScene'
+import type { LocationTreasure } from './ar/shared/types'
 
 // Dynamically import ARScene with proper typing
 const AframeScene = dynamic<ARSceneProps>(
@@ -46,7 +47,19 @@ export function TreasureHuntScreen() {
     const treasure = LOCATION_BASED_TREASURES.find(t => t.id === treasureId)
     if (treasure) {
       setClaimedTreasures(prev => [...prev, treasureId])
-      setActiveTreasure(treasure)
+      // Convert LocationTreasure to Treasure type
+      const treasureData: Treasure = {
+        id: treasure.id,
+        name: treasure.name,
+        model: '', // Required by Treasure interface
+        points: treasure.points,
+        hint: treasure.hint,
+        type: 'mask', // Default type since it's not in LocationTreasure
+        rarity: treasure.rarity,
+        latitude: treasure.location.lat,
+        longitude: treasure.location.lng
+      }
+      setActiveTreasure(treasureData)
       setFoundTreasure(true)
     }
   }
@@ -56,17 +69,17 @@ export function TreasureHuntScreen() {
     
     // Update distance to nearest unclaimed treasure
     const unclaimedTreasures = LOCATION_BASED_TREASURES.filter(t => 
-      !claimedTreasures.includes(t.id) && t.latitude && t.longitude
+      !claimedTreasures.includes(t.id) && t.location.lat && t.location.lng
     )
     
     if (unclaimedTreasures.length > 0) {
       const distances = unclaimedTreasures.map(treasure => {
-        if (treasure.latitude && treasure.longitude) {
+        if (treasure.location.lat && treasure.location.lng) {
           const R = 6371e3 // Earth's radius in meters
           const φ1 = position.latitude * Math.PI/180
-          const φ2 = treasure.latitude * Math.PI/180
-          const Δφ = (treasure.latitude - position.latitude) * Math.PI/180
-          const Δλ = (treasure.longitude - position.longitude) * Math.PI/180
+          const φ2 = treasure.location.lat * Math.PI/180
+          const Δφ = (treasure.location.lat - position.latitude) * Math.PI/180
+          const Δλ = (treasure.location.lng - position.longitude) * Math.PI/180
 
           const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
                    Math.cos(φ1) * Math.cos(φ2) *
@@ -122,15 +135,6 @@ export function TreasureHuntScreen() {
     <div className="h-screen w-screen relative overflow-hidden bg-black">
       {/* AR Camera View */}
       <div className="absolute inset-0 z-0">
-        {!scanning && !markerVisible && (
-          <Image
-            src="/placeholder.svg?height=800&width=400"
-            alt="Camera Placeholder"
-            fill
-            className="object-cover opacity-80"
-          />
-        )}
-
         {/* A-Frame Scene */}
         <AframeScene 
           onMarkerFound={handleMarkerFound}

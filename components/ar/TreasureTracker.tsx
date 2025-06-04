@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TREASURE_MARKERS } from './markers/treasureMarkers'
+import { LocationTreasure } from './shared/types'
 
 interface TreasureStats {
   totalDiscovered: number
@@ -55,16 +55,13 @@ interface TreasureStats {
 }
 
 interface TreasureTrackerProps {
-  claimedTreasures: string[]
-  onCollectionComplete?: (collectionName: string) => void
-  onAchievementUnlocked?: (achievementName: string) => void
+  treasures: LocationTreasure[]
+  playerPosition: { lat: number; lng: number }
+  gpsError: string | null
 }
 
-export function TreasureTracker({ 
-  claimedTreasures, 
-  onCollectionComplete,
-  onAchievementUnlocked 
-}: TreasureTrackerProps) {
+export function TreasureTracker({ treasures, playerPosition, gpsError }: TreasureTrackerProps) {
+  const [nearbyTreasures, setNearbyTreasures] = useState<LocationTreasure[]>([])
   const [stats, setStats] = useState<TreasureStats>({
     totalDiscovered: 0,
     collections: {},
@@ -112,23 +109,21 @@ export function TreasureTracker({
     locationStats: {}
   })
 
+  // Calculate statistics when treasures change
   useEffect(() => {
-    // Calculate statistics when claimed treasures change
-    const discoveredTreasures = TREASURE_MARKERS.filter(treasure => 
-      claimedTreasures.includes(treasure.id)
-    )
+    if (!treasures.length) return
 
     // Group by collection
     const collections: { [key: string]: any } = {}
-    discoveredTreasures.forEach(treasure => {
-      const collection = treasure.location.reward?.collection
+    treasures.forEach(treasure => {
+      const collection = treasure.location?.reward?.collection
       if (collection) {
         if (!collections[collection]) {
           collections[collection] = {
             name: collection,
             progress: 0,
-            total: TREASURE_MARKERS.filter(t => 
-              t.location.reward?.collection === collection
+            total: treasures.filter(t => 
+              t.location?.reward?.collection === collection
             ).length,
             items: []
           }
@@ -145,20 +140,20 @@ export function TreasureTracker({
       epic: 0,
       legendary: 0
     }
-    discoveredTreasures.forEach(treasure => {
-      const rarity = treasure.location.reward?.rarity
-      if (rarity) {
-        rarityCounts[rarity as keyof typeof rarityCounts]++
+    treasures.forEach(treasure => {
+      const rarityKey = treasure.rarity as keyof typeof rarityCounts;
+      if (rarityKey in rarityCounts) {
+        rarityCounts[rarityKey]++;
       }
     })
 
     // Get recent discoveries
-    const recentDiscoveries = discoveredTreasures
+    const recentDiscoveries = treasures
       .map(treasure => ({
         id: treasure.id,
-        name: treasure.location.name,
+        name: treasure.name,
         timestamp: new Date(),
-        reward: treasure.location.reward ? {
+        reward: treasure.location?.reward ? {
           type: treasure.location.reward.type,
           description: treasure.location.reward.description,
           rarity: String(treasure.location.reward.rarity)
@@ -183,8 +178,8 @@ export function TreasureTracker({
 
     // Calculate location statistics
     const locationStats: { [key: string]: any } = {}
-    discoveredTreasures.forEach(treasure => {
-      const location = treasure.location.name
+    treasures.forEach(treasure => {
+      const location = treasure.location?.name || 'Unknown Location'
       if (!locationStats[location]) {
         locationStats[location] = {
           name: location,
@@ -204,7 +199,7 @@ export function TreasureTracker({
 
       switch (achievement.name) {
         case 'Treasure Hunter':
-          progress = discoveredTreasures.length > 0 ? 1 : 0
+          progress = treasures.length > 0 ? 1 : 0
           completed = progress >= achievement.total
           break
         case 'Collection Master':
@@ -216,7 +211,7 @@ export function TreasureTracker({
           completed = progress >= achievement.total
           break
         case 'Night Explorer':
-          progress = discoveredTreasures.filter(t => 
+          progress = treasures.filter(t => 
             t.behavior?.timeOfDay === 'night'
           ).length
           completed = progress >= achievement.total
@@ -225,7 +220,6 @@ export function TreasureTracker({
 
       if (completed && !achievement.completed) {
         achievement.completedAt = new Date()
-        onAchievementUnlocked?.(achievement.name)
       }
 
       return {
@@ -236,7 +230,7 @@ export function TreasureTracker({
     })
 
     setStats({
-      totalDiscovered: discoveredTreasures.length,
+      totalDiscovered: treasures.length,
       collections,
       rarityCounts,
       recentDiscoveries,
@@ -244,136 +238,80 @@ export function TreasureTracker({
       timeStats,
       locationStats
     })
+  }, [treasures])
 
-    // Check for completed collections
-    Object.entries(collections).forEach(([name, collection]) => {
-      if (collection.progress === collection.total) {
-        collection.completedAt = new Date()
-        onCollectionComplete?.(name)
-      }
+  // Calculate nearby treasures
+  useEffect(() => {
+    if (!playerPosition?.lat || !playerPosition?.lng) return
+
+    const TREASURE_RADIUS = 50 // meters
+
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371e3 // Earth's radius in meters
+      const φ1 = (lat1 * Math.PI) / 180
+      const φ2 = (lat2 * Math.PI) / 180
+      const Δφ = ((lat2 - lat1) * Math.PI) / 180
+      const Δλ = ((lon2 - lon1) * Math.PI) / 180
+
+      const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+      return R * c // Distance in meters
+    }
+
+    const nearby = treasures.filter((treasure) => {
+      if (!treasure.location?.lat || !treasure.location?.lng) return false
+      
+      const distance = calculateDistance(
+        playerPosition.lat,
+        playerPosition.lng,
+        treasure.location.lat,
+        treasure.location.lng
+      )
+      return distance <= TREASURE_RADIUS
     })
-  }, [claimedTreasures, onCollectionComplete, onAchievementUnlocked])
+
+    setNearbyTreasures(nearby)
+  }, [treasures, playerPosition])
+
+  // Don't render anything if we don't have valid coordinates
+  if (!playerPosition?.lat || !playerPosition?.lng) {
+    return null
+  }
+
+  if (gpsError) {
+    return (
+      <div className="fixed bottom-4 left-4 right-4 p-4 bg-red-50 rounded-lg shadow-lg">
+        <p className="text-red-600">{gpsError}</p>
+      </div>
+    )
+  }
+
+  if (nearbyTreasures.length === 0) {
+    return (
+      <div className="fixed bottom-4 left-4 right-4 p-4 bg-blue-50 rounded-lg shadow-lg">
+        <p className="text-blue-600">No treasures nearby. Keep exploring!</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white/90 p-4 rounded-lg shadow-lg max-w-sm overflow-y-auto max-h-[80vh]">
-      <h3 className="text-lg font-bold mb-2">Treasure Tracker</h3>
-      
-      {/* Total Discoveries */}
-      <div className="mb-4">
-        <p className="text-sm text-gray-600">
-          Total Discoveries: {stats.totalDiscovered}/{TREASURE_MARKERS.length}
-        </p>
-      </div>
-
-      {/* Collections Progress */}
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2">Collections</h4>
-        {Object.entries(stats.collections).map(([name, collection]) => (
-          <div key={name} className="mb-2">
-            <div className="flex justify-between text-sm">
-              <span>{collection.name}</span>
-              <span>{collection.progress}/{collection.total}</span>
+    <div className="fixed bottom-4 left-4 right-4 p-4 bg-green-50 rounded-lg shadow-lg">
+      <h3 className="text-lg font-semibold text-green-700 mb-2">Nearby Treasures</h3>
+      <div className="space-y-2">
+        {nearbyTreasures.map((treasure) => (
+          <div key={treasure.id} className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-green-800">{treasure.name}</p>
+              <p className="text-sm text-green-600">{treasure.hint}</p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full"
-                style={{ width: `${(collection.progress / collection.total) * 100}%` }}
-              />
-            </div>
-            {collection.completedAt && (
-              <p className="text-xs text-green-600 mt-1">
-                Completed: {collection.completedAt.toLocaleDateString()}
-              </p>
-            )}
+            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+              {treasure.rarity}
+            </span>
           </div>
         ))}
-      </div>
-
-      {/* Achievements */}
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2">Achievements</h4>
-        <div className="space-y-2">
-          {stats.achievements.map(achievement => (
-            <div key={achievement.name} className="text-sm">
-              <div className="flex justify-between">
-                <span className="font-medium">{achievement.name}</span>
-                <span>{achievement.progress}/{achievement.total}</span>
-              </div>
-              <p className="text-gray-600 text-xs">{achievement.description}</p>
-              {achievement.completed && (
-                <p className="text-green-600 text-xs">
-                  Unlocked: {achievement.completedAt?.toLocaleDateString()}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Rarity Distribution */}
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2">Rarity Distribution</h4>
-        <div className="grid grid-cols-4 gap-2 text-sm">
-          {Object.entries(stats.rarityCounts).map(([rarity, count]) => (
-            <div key={rarity} className="text-center">
-              <div className="font-medium capitalize">{rarity}</div>
-              <div className="text-gray-600">{count}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Time Statistics */}
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2">Time Statistics</h4>
-        <div className="text-sm space-y-1">
-          {stats.timeStats.firstDiscovery && (
-            <p>First Discovery: {stats.timeStats.firstDiscovery.toLocaleDateString()}</p>
-          )}
-          {stats.timeStats.lastDiscovery && (
-            <p>Last Discovery: {stats.timeStats.lastDiscovery.toLocaleDateString()}</p>
-          )}
-          <p>Total Time: {Math.round(stats.timeStats.totalTimeSpent / 1000 / 60)} minutes</p>
-          <p>Avg. Time Between: {Math.round(stats.timeStats.averageTimeBetweenDiscoveries / 1000 / 60)} minutes</p>
-        </div>
-      </div>
-
-      {/* Location Statistics */}
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2">Location Statistics</h4>
-        <div className="space-y-2">
-          {Object.entries(stats.locationStats).map(([name, data]) => (
-            <div key={name} className="text-sm">
-              <div className="font-medium">{data.name}</div>
-              <div className="text-gray-600">
-                Discoveries: {data.discoveries}
-                {data.lastVisited && (
-                  <span className="ml-2">
-                    Last Visit: {data.lastVisited.toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recent Discoveries */}
-      <div>
-        <h4 className="font-semibold mb-2">Recent Discoveries</h4>
-        <div className="space-y-2">
-          {stats.recentDiscoveries.map(discovery => (
-            <div key={discovery.id} className="text-sm">
-              <div className="font-medium">{discovery.name}</div>
-              <div className="text-gray-600">
-                {discovery.reward.description} ({discovery.reward.rarity})
-              </div>
-              <div className="text-xs text-gray-500">
-                {discovery.timestamp.toLocaleDateString()}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )
