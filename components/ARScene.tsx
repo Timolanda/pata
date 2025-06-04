@@ -180,11 +180,13 @@ export function ARScene({ onMarkerFound, onMarkerLost, treasures = [], onTreasur
                   sourceWidth: 1280;
                   sourceHeight: 720;
                   displayWidth: 1280;
-                  displayHeight: 720;"
+                  displayHeight: 720;
+                  debug: true;"
             renderer="antialias: true; 
                      alpha: true; 
                      precision: highp;
-                     logarithmicDepthBuffer: true;"
+                     logarithmicDepthBuffer: true;
+                     colorManagement: true;"
             vr-mode-ui="enabled: false"
             ar-cors-hack
             device-orientation-permission-ui="enabled: false"
@@ -285,6 +287,9 @@ export function ARScene({ onMarkerFound, onMarkerLost, treasures = [], onTreasur
             )}
 
             <a-entity camera look-controls="enabled: false"></a-entity>
+            <a-entity id="camera" position="0 0 0" rotation="0 0 0">
+              <a-entity camera look-controls="enabled: false"></a-entity>
+            </a-entity>
           </a-scene>
         </div>
       </ErrorBoundary>

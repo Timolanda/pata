@@ -103,13 +103,13 @@ export function ARProvider({ children }: ARProviderProps) {
         onError={handleScriptError}
       />
       <Script
-        src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@master/aframe/build/aframe-ar.js"
+        src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"
         strategy="beforeInteractive"
         onLoad={handleScriptsLoaded}
         onError={handleScriptError}
       />
       
-      {/* Add CORS headers for AR.js */}
+      {/* Add CORS headers and debug mode for AR.js */}
       <Script id="ar-cors-headers">
         {`
           if (window.AFRAME) {
@@ -124,6 +124,14 @@ export function ARProvider({ children }: ARProviderProps) {
                     img.src = src;
                   });
                 };
+              }
+            });
+
+            // Enable debug mode
+            AFRAME.registerComponent('debug-mode', {
+              init: function () {
+                this.el.sceneEl.setAttribute('debug', true);
+                console.log('AR.js debug mode enabled');
               }
             });
           }
